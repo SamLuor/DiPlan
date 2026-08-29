@@ -8,6 +8,9 @@ RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 COPY . .
+# Sem isso, o V8 usa um teto de heap baseado só na RAM física (1GB numa t3.micro) e nem
+# tenta usar o swap disponível — estoura "heap out of memory" mesmo com swap configurado.
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 RUN pnpm run build
 
 FROM base AS runtime

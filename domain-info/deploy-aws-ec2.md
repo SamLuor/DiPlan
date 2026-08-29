@@ -102,6 +102,15 @@ Via SSH (`ssh -i diplan-key.pem ec2-user@SEU_IP`):
 ```bash
 sudo dnf update -y
 sudo dnf install -y docker git
+
+# Swap — o t3.micro só tem 1GB de RAM, e o build (vite build + tsc) do container
+# estoura isso sozinho ("JavaScript heap out of memory"). 2GB de swap resolve.
+sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab
+free -h   # confirma que o swap apareceu
 sudo systemctl enable --now docker
 sudo usermod -aG docker ec2-user
 # Desloga e reconecta o SSH pra o grupo `docker` valer
@@ -112,6 +121,13 @@ sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-
   -o /usr/local/lib/docker/cli-plugins/docker-compose   # troque x86_64→aarch64 se tiver usado um tipo de instância ARM (ex. t4g.micro)
 sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 docker compose version   # confirma que instalou
+
+# Buildx (plugin) — o Compose v2 exige pra build de imagem, Amazon Linux 2023 também não traz
+BUILDX_VERSION=$(curl -s https://api.github.com/repos/docker/buildx/releases/latest | grep '"tag_name"' | cut -d '"' -f4)
+sudo curl -SL "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-amd64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-buildx   # troque linux-amd64→linux-arm64 se tiver usado um tipo de instância ARM (ex. t4g.micro)
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
+docker buildx version   # confirma que instalou
 ```
 
 ### 3. Clonar o repositório e configurar o ambiente
