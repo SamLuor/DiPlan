@@ -196,3 +196,5 @@ Cria 1 eixo ("Administração") + 1 usuário (chefia, modo convite) e dispara o 
 ## HTTPS com domínio próprio (quando tiver um)
 
 Fora do escopo deste primeiro deploy (homologação, acesso só por IP). Quando a cliente tiver um domínio, o caminho mais simples é colocar um Caddy na frente do `app` (Caddy tira certificado Let's Encrypt sozinho, só precisa apontar o domínio pro IP elástico) — revisitar como uma etapa separada quando isso for necessário, não antes.
+
+**Nota de segurança enquanto for só HTTP (acesso por IP)**: o cookie de sessão só fica marcado `Secure` quando `APP_URL` começa com `https://` (ver `session.server.ts`) — com `http://SEU_IP`, o login funciona, mas o cookie de sessão trafega sem criptografia. Aceitável pra homologação/demo em rede que você controla; não deve ser usado como configuração final pra dados reais da cliente sem migrar pra HTTPS.

@@ -3,6 +3,7 @@ import { deleteCookie, getCookie, setCookie } from '@tanstack/react-start/server
 import { eq } from 'drizzle-orm'
 import { db } from '~/server/infra/db/client'
 import { sessions } from '~/server/infra/db/schema'
+import { env } from '~/server/infra/config/env.server'
 
 const COOKIE_NAME = 'ge_session'
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7 // 7 dias
@@ -13,7 +14,10 @@ export async function createSession(userId: string): Promise<void> {
   await db.insert(sessions).values({ id: token, userId, expiresAt })
   setCookie(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    // Depende do protocolo real servido, não de NODE_ENV — um `secure: true` fixo em produção
+    // quebra login silenciosamente sempre que o acesso ainda é por http:// (ex.: só IP, sem
+    // domínio/TLS configurado ainda), porque o navegador descarta cookie Secure fora de HTTPS.
+    secure: env.APP_URL.startsWith('https://'),
     sameSite: 'lax',
     path: '/',
     expires: expiresAt,
