@@ -80,8 +80,9 @@ Lógica (`isOverdue()`):
 - **PENDENTE CRÍTICO:** a exclusão hoje é **definitiva** (`entrega.notas.filter(...)`) — contraria a Seção 8.2, que exige que o registro exista no histórico de auditoria mesmo depois de "excluído" da visualização comum. Precisa virar soft delete (ver Backlog, item 1)
 
 ### 3.8. Anexos
-- Upload múltiplo, remoção
-- **Sem versionamento** — o documento (Seção 10) exige manter versões anteriores ao substituir um arquivo. Não implementado
+- Upload real (S3, via URL pré-assinada — arquivo vai direto do navegador pro bucket, sem passar pelo servidor), múltiplo, remoção (apaga o objeto no S3 também) e download
+- Bucket privado; acesso só via IAM role da instância (produção) — nada de chave/segredo fixo em env. Ver `domain-info/deploy-aws-ec2.md`
+- **Sem versionamento** — o documento (Seção 10) exige manter versões anteriores ao substituir um arquivo. Não implementado (Backlog, item 8)
 
 ### 3.9. Colaboração (implementado apenas parcialmente / de forma incorreta)
 - Existe hoje um campo **"Observadores"**: tags simples de nome, sem tipo de solicitação, sem prazo de retorno, sem notificação de resposta

@@ -19,6 +19,15 @@ export interface Entrega {
 export interface Anexo {
   id: string
   nome: string
+  contentType: string
+  tamanho: number
+}
+
+export interface NovoAnexoInput {
+  key: string
+  nome: string
+  contentType: string
+  tamanho: number
 }
 
 export interface Nota {
@@ -93,8 +102,9 @@ export interface EntregaRepository {
   editNota(notaId: string, texto: string): Promise<Nota | null>
   softDeleteNota(notaId: string): Promise<void>
 
-  addAnexos(entregaId: string, nomes: string[]): Promise<Anexo[]>
+  addAnexo(entregaId: string, data: NovoAnexoInput): Promise<Anexo>
   removeAnexo(anexoId: string): Promise<void>
+  findAnexoForDownload(anexoId: string): Promise<{ key: string; nome: string } | null>
 
   addSolicitacao(entregaId: string, data: NovaSolicitacaoInput): Promise<Solicitacao>
   responderSolicitacao(solicitacaoId: string, userId: string): Promise<void>

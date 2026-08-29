@@ -3,6 +3,14 @@ import { db } from '~/server/infra/db/client'
 import { anexos, entregas, notas, solicitacaoResponsaveis, solicitacoes } from '~/server/infra/db/schema'
 import type { Entrega, EntregaDetalhada, EntregaRepository, Solicitacao } from './entrega.repository'
 
+// Nunca inclui `key` — é detalhe interno de armazenamento, não deve chegar ao client.
+const ANEXO_COLUMNS = {
+  id: anexos.id,
+  nome: anexos.nome,
+  contentType: anexos.contentType,
+  tamanho: anexos.tamanho,
+}
+
 const LIST_COLUMNS = {
   id: entregas.id,
   titulo: entregas.titulo,
@@ -49,7 +57,7 @@ export const entregaRepository: EntregaRepository = {
     const [entrega] = await db.select(LIST_COLUMNS).from(entregas).where(eq(entregas.id, id)).limit(1)
     if (!entrega) return null
     const [entregaAnexos, entregaNotas, entregaSolicitacoes] = await Promise.all([
-      db.select().from(anexos).where(eq(anexos.entregaId, id)),
+      db.select(ANEXO_COLUMNS).from(anexos).where(eq(anexos.entregaId, id)),
       db.select().from(notas).where(eq(notas.entregaId, id)),
       loadSolicitacoes(id),
     ])
@@ -96,16 +104,21 @@ export const entregaRepository: EntregaRepository = {
     await db.update(notas).set({ excluido: true }).where(eq(notas.id, notaId))
   },
 
-  async addAnexos(entregaId, nomes) {
-    if (nomes.length === 0) return []
-    return db
+  async addAnexo(entregaId, data) {
+    const [row] = await db
       .insert(anexos)
-      .values(nomes.map((nome) => ({ entregaId, nome })))
-      .returning()
+      .values({ entregaId, ...data })
+      .returning(ANEXO_COLUMNS)
+    return row!
   },
 
   async removeAnexo(anexoId) {
     await db.delete(anexos).where(eq(anexos.id, anexoId))
+  },
+
+  async findAnexoForDownload(anexoId) {
+    const [row] = await db.select({ key: anexos.key, nome: anexos.nome }).from(anexos).where(eq(anexos.id, anexoId)).limit(1)
+    return row ?? null
   },
 
   async addSolicitacao(entregaId, data) {

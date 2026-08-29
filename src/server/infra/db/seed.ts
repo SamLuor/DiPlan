@@ -79,12 +79,14 @@ async function seed() {
     { entregaId: e16!.id, texto: 'Treinamento realizado com toda a equipe.', autor: 'Paulo Costa', tipo: 'manual', dataHora: new Date('2026-07-20T17:00:00') },
   ])
 
+  // Anexos de seed são só decorativos — o `key` não aponta pra um objeto real no S3,
+  // então "baixar" um desses no dev vai falhar (URL pré-assinada pra uma chave inexistente).
   await db.insert(anexos).values([
-    { entregaId: e1!.id, nome: 'apresentacao-xpto.pdf' },
-    { entregaId: e4!.id, nome: 'proposta-almeida-v3.pdf' },
-    { entregaId: e6!.id, nome: 'plano-migracao.xlsx' },
-    { entregaId: e10!.id, nome: 'checklist-lancamento.pdf' },
-    { entregaId: e15!.id, nome: 'relatorio-auditoria.docx' },
+    { entregaId: e1!.id, nome: 'apresentacao-xpto.pdf', key: 'seed/apresentacao-xpto.pdf', contentType: 'application/pdf', tamanho: 245_000 },
+    { entregaId: e4!.id, nome: 'proposta-almeida-v3.pdf', key: 'seed/proposta-almeida-v3.pdf', contentType: 'application/pdf', tamanho: 189_000 },
+    { entregaId: e6!.id, nome: 'plano-migracao.xlsx', key: 'seed/plano-migracao.xlsx', contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', tamanho: 56_000 },
+    { entregaId: e10!.id, nome: 'checklist-lancamento.pdf', key: 'seed/checklist-lancamento.pdf', contentType: 'application/pdf', tamanho: 98_000 },
+    { entregaId: e15!.id, nome: 'relatorio-auditoria.docx', key: 'seed/relatorio-auditoria.docx', contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', tamanho: 312_000 },
   ])
 
   console.log('Seed concluído.')

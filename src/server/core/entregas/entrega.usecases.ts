@@ -10,6 +10,10 @@ import type {
   SituacaoEntrega,
 } from '~/server/repository/entrega.repository'
 import { isChefiaAtual, situacaoLabel, solicitacaoTipoLabel } from '~/server/core/shared/rules'
+// Mesma exceção deliberada de auth.usecases.ts à regra "core não importa infra":
+// gerar URL pré-assinada / apagar objeto no S3 é primitiva de infra externa,
+// não regra de negócio — não compensa esconder isso atrás de uma interface aqui.
+import { buildAnexoKey, createDownloadUrl, createUploadUrl, deleteObject } from '~/server/infra/storage/s3.server'
 
 export interface Actor {
   id: string
@@ -144,11 +148,38 @@ export async function deleteNota(repos: EntregaRepos, entrega: EntregaDetalhada,
   await repos.entregas.softDeleteNota(notaId)
 }
 
-export async function addAnexos(repos: EntregaRepos, entregaId: string, nomes: string[]) {
-  return repos.entregas.addAnexos(entregaId, nomes)
+const MAX_ANEXO_BYTES = 20 * 1024 * 1024 // 20MB — só um limite de bom senso; a URL pré-assinada de PUT não impõe isso sozinha.
+
+export interface NovoAnexoMeta {
+  nome: string
+  contentType: string
+  tamanho: number
+}
+
+export async function createAnexoUploadUrl(repos: EntregaRepos, entregaId: string, meta: NovoAnexoMeta) {
+  if (!meta.nome.trim()) throw new Error('Nome do arquivo é obrigatório.')
+  if (meta.tamanho <= 0 || meta.tamanho > MAX_ANEXO_BYTES) throw new Error('Arquivo excede o tamanho máximo permitido (20MB).')
+  const entrega = await repos.entregas.findById(entregaId)
+  if (!entrega) throw new Error('Entrega não encontrada.')
+
+  const key = buildAnexoKey(entregaId)
+  const uploadUrl = await createUploadUrl(key, meta.contentType)
+  return { key, uploadUrl }
+}
+
+export async function confirmAnexoUpload(repos: EntregaRepos, entregaId: string, data: { key: string } & NovoAnexoMeta) {
+  return repos.entregas.addAnexo(entregaId, data)
+}
+
+export async function getAnexoDownloadUrl(repos: EntregaRepos, anexoId: string) {
+  const anexo = await repos.entregas.findAnexoForDownload(anexoId)
+  if (!anexo) throw new Error('Anexo não encontrado.')
+  return createDownloadUrl(anexo.key, anexo.nome)
 }
 
 export async function removeAnexo(repos: EntregaRepos, anexoId: string) {
+  const anexo = await repos.entregas.findAnexoForDownload(anexoId)
+  if (anexo) await deleteObject(anexo.key)
   await repos.entregas.removeAnexo(anexoId)
 }
 

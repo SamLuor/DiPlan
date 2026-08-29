@@ -31,7 +31,7 @@ Ver `src/server/infra/db/schema/*.ts` para a definição completa (Drizzle). Res
 | `usuarios` | nome, email (unique), senha_hash (nullable), modo, eixo_id | → eixos (cascade) |
 | `planos` | nome, eixo_id, status, data_inicio, data_fim | → eixos (cascade) |
 | `entregas` | titulo, descricao, plano_id, data_inicio, data_prevista, prioridade, responsavel_user_id, situacao | → planos (cascade), → usuarios (set null) |
-| `anexos` | entrega_id, nome (só metadado, sem upload real) | → entregas (cascade) |
+| `anexos` | entrega_id, nome, key (objeto no S3), content_type, tamanho | → entregas (cascade) |
 | `notas` | entrega_id, texto, autor (texto livre), tipo, proximo_passo, anexo_nome, editado, **excluido** (soft delete), data_hora | → entregas (cascade) |
 | `solicitacoes` | entrega_id, tipo, descricao, prazo, prioridade, criado_em | → entregas (cascade) |
 | `solicitacao_responsaveis` | solicitacao_id, user_id, respondeu, respondido_em (PK composta) | → solicitacoes, usuarios (cascade) |
@@ -86,7 +86,10 @@ Divergências conhecidas (deliberadas, ver `domain-system.md`):
 | `moveEntregaToStatusFn`, `performAcaoFn` | `{ id, status? }` | **bloqueado se o plano estiver `planejado`** (regra não validada com a cliente, ver `domain-system.md` Seção 6); gera registro automático na timeline |
 | `addNotaFn`, `editNotaFn` | — | `editado=true` ao editar |
 | `deleteNotaFn` | `{ entregaId, notaId }` | soft delete, **restrito a quem é chefia do eixo daquela entrega** (busca a chefia na lista global de usuários, não só nos do eixo — replica exatamente `isChefiaAtual` do front) |
-| `addAnexosFn`, `removeAnexoFn` | — | só metadado |
+| `createAnexoUploadUrlFn` | `{ entregaId, nome, contentType, tamanho }` | gera `key` (uuid, não usa o nome do arquivo) + URL pré-assinada de PUT (5min) — o navegador sobe o arquivo direto pro S3, não passa pelo servidor |
+| `confirmAnexoUploadFn` | `{ entregaId, key, nome, contentType, tamanho }` | chamado depois do PUT no S3 ter sucesso — só então grava a linha em `anexos` |
+| `getAnexoDownloadUrlFn` | `{ anexoId }` | URL pré-assinada de GET (5min), com `Content-Disposition` pro nome original |
+| `removeAnexoFn` | `{ anexoId }` | apaga o objeto no S3 e depois a linha no banco |
 | `addSolicitacaoFn` | `{ tipo, descricao, prazo, prioridade, responsavelIds }` | exige descrição + ao menos 1 responsável; gera registro automático |
 | `responderSolicitacaoFn` | `{ entregaId, solicitacaoId }` | marca a resposta do usuário autenticado; gera registro automático |
 

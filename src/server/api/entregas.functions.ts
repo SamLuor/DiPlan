@@ -3,12 +3,14 @@ import { queryOptions } from '@tanstack/react-query'
 import { z } from 'zod'
 import { currentUser } from '~/server/core/auth/auth.usecases'
 import {
-  addAnexos,
   addNota,
   addSolicitacao,
+  confirmAnexoUpload,
+  createAnexoUploadUrl,
   createEntrega,
   deleteNota,
   editNota,
+  getAnexoDownloadUrl,
   moveEntregaToStatus,
   performAcao,
   removeAnexo,
@@ -126,15 +128,39 @@ export const deleteNotaFn = createServerFn({ method: 'POST' })
     await deleteNota(repos, entrega, data.notaId, actor)
   })
 
-export const addAnexosFn = createServerFn({ method: 'POST' })
-  .validator(z.object({ entregaId: z.string().min(1), nomes: z.array(z.string().min(1)) }))
+const anexoMetaSchema = z.object({
+  nome: z.string().min(1),
+  contentType: z.string().min(1),
+  tamanho: z.number().int().positive(),
+})
+
+export const createAnexoUploadUrlFn = createServerFn({ method: 'POST' })
+  .validator(z.object({ entregaId: z.string().min(1) }).and(anexoMetaSchema))
   .handler(async ({ data }) => {
-    return addAnexos(repos, data.entregaId, data.nomes)
+    await requireActor()
+    const { entregaId, ...meta } = data
+    return createAnexoUploadUrl(repos, entregaId, meta)
+  })
+
+export const confirmAnexoUploadFn = createServerFn({ method: 'POST' })
+  .validator(z.object({ entregaId: z.string().min(1), key: z.string().min(1) }).and(anexoMetaSchema))
+  .handler(async ({ data }) => {
+    await requireActor()
+    const { entregaId, ...input } = data
+    return confirmAnexoUpload(repos, entregaId, input)
+  })
+
+export const getAnexoDownloadUrlFn = createServerFn({ method: 'POST' })
+  .validator(z.object({ anexoId: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    await requireActor()
+    return getAnexoDownloadUrl(repos, data.anexoId)
   })
 
 export const removeAnexoFn = createServerFn({ method: 'POST' })
   .validator(z.object({ anexoId: z.string().min(1) }))
   .handler(async ({ data }) => {
+    await requireActor()
     await removeAnexo(repos, data.anexoId)
   })
 
