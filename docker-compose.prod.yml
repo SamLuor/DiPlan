@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gestao_entregas}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-gestao_entregas}
+    volumes:
+      - gestao_entregas_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '80:3000'
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gestao_entregas}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-gestao_entregas}
+      SESSION_SECRET: ${SESSION_SECRET}
+      APP_URL: ${APP_URL}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_FROM: ${RESEND_FROM:-onboarding@resend.dev}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      NODE_ENV: production
+
+volumes:
+  gestao_entregas_pgdata:

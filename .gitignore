@@ -8,6 +8,7 @@ dist
 .DS_Store
 src/routeTree.gen.ts
 .env
+.env.production
 
 # Config local de ferramentas (Claude Code / agentes) — não é código da aplicação
 .claude

@@ -1,0 +1,12 @@
+node_modules
+.output
+.git
+.tanstack
+.nitro
+.vinxi
+.claude
+.agents
+dist
+*.local
+.env
+.env.production
