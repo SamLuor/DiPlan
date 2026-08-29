@@ -1,0 +1,58 @@
+{
+  "name": "gestao-de-entregas",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build && tsc --noEmit",
+    "start": "pnpm db:migrate:prod && node .output/server/index.mjs",
+    "typecheck": "tsc --noEmit",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:generate": "dotenv -e .env -- drizzle-kit generate",
+    "db:migrate": "dotenv -e .env -- drizzle-kit migrate",
+    "db:seed": "dotenv -e .env -- tsx src/server/infra/db/seed.ts",
+    "db:seed:homolog": "dotenv -e .env -- tsx src/server/infra/db/seedHomolog.ts",
+    "db:migrate:prod": "drizzle-kit migrate",
+    "db:seed:homolog:prod": "tsx src/server/infra/db/seedHomolog.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-query": "^5.102.8",
+    "@tanstack/react-router": "^1.170.32",
+    "@tanstack/react-router-ssr-query": "^1.167.2",
+    "@tanstack/react-start": "^1.168.49",
+    "argon2": "^0.45.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.35.0",
+    "pg": "^8.23.0",
+    "radix-ui": "^1.6.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "resend": "^6.25.0",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3",
+    "zod": "^4.5.1",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@tanstack/react-query-devtools": "^5.102.8",
+    "@tanstack/react-router-devtools": "^1.167.1",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "dotenv-cli": "^11.0.0",
+    "drizzle-kit": "^0.31.10",
+    "nitro": "^3.0.260610-beta",
+    "tsx": "^4.23.12",
+    "typescript": "^5.7.3",
+    "vite": "^8.2.2"
+  }
+}

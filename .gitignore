@@ -1,0 +1,15 @@
+node_modules
+.output
+.vinxi
+.nitro
+.tanstack
+dist
+*.local
+.DS_Store
+src/routeTree.gen.ts
+.env
+
+# Config local de ferramentas (Claude Code / agentes) — não é código da aplicação
+.claude
+.agents
+skills-lock.json

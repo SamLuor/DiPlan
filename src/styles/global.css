@@ -1,0 +1,103 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+:root {
+  --radius: 0.5rem;
+
+  --background: #f3f0ec;
+  --foreground: #2f302e;
+
+  --card: #ffffff;
+  --card-foreground: #2f302e;
+
+  --popover: #ffffff;
+  --popover-foreground: #2f302e;
+
+  --primary: #197248;
+  --primary-foreground: #ffffff;
+
+  --secondary: #e4e2e0;
+  --secondary-foreground: #2f302e;
+
+  --muted: #e4e2e0;
+  --muted-foreground: rgba(47, 48, 46, 0.55);
+
+  --accent: #dcebdd;
+  --accent-foreground: #0a6941;
+
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+
+  --warning: #fbebcf;
+  --warning-foreground: #8a5a12;
+
+  --border: rgba(47, 48, 46, 0.14);
+  --input: rgba(47, 48, 46, 0.14);
+  --ring: #197248;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 12px);
+  --radius-3xl: calc(var(--radius) + 20px);
+
+  --font-sans: 'Sora', 'Segoe UI', system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+::selection {
+  background: rgba(25, 114, 72, 0.25);
+}
+
+@keyframes slideFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
