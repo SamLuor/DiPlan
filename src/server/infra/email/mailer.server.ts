@@ -30,6 +30,8 @@ export async function sendPasswordSetupEmail({ to, nome, link }: SendPasswordSet
     html: passwordSetupHtml({ nome, link }),
   })
   if (error) {
-    console.error('[mailer] Falha ao enviar e-mail via Resend:', error)
+    // Sem isso, uma falha de envio (ex.: conta Resend em sandbox, só entrega pro próprio
+    // e-mail da conta) perde o link de vez — o token já existe no banco, mas ninguém o vê.
+    console.error(`[mailer] Falha ao enviar e-mail via Resend — link de definição de senha para ${to}:\n${link}\nErro:`, error)
   }
 }
