@@ -5,6 +5,7 @@ import { cn } from '~/lib/utils'
 import { eixosQueryOptions } from '~/server/api/eixos.functions'
 import { currentUserQueryOptions } from '~/server/api/auth.functions'
 import { useUiStore } from '~/store/useUiStore'
+import { useAbility } from '~/hooks/useAbility'
 
 export function EixosSidebar() {
   const navigate = useNavigate()
@@ -12,6 +13,8 @@ export function EixosSidebar() {
   const { data: currentUser } = useQuery(currentUserQueryOptions())
   const openEixoModal = useUiStore((s) => s.openEixoModal)
   const { eixoId: selectedEixoId } = useParams({ strict: false })
+  const ability = useAbility()
+  const podeAdministrar = ability.can('administrar', 'Eixo')
 
   return (
     <aside className="relative flex w-53 flex-none flex-col overflow-hidden overflow-y-auto border-l border-white/10 bg-[linear-gradient(90deg,#FFFFFF15_0%,transparent_100%)] py-5 px-3 animate-[slideFadeIn_0.32s_cubic-bezier(0.16,1,0.3,1)_both]">
@@ -35,28 +38,32 @@ export function EixosSidebar() {
               >
                 {eixo.nome}
               </button>
-              <button
-                type="button"
-                title="Editar eixo"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  openEixoModal({ mode: 'edit', eixoId: eixo.id })
-                }}
-                className={cn('mr-1 flex size-7 flex-none items-center justify-center rounded-md text-white/40', isSelected && 'text-white/80')}
-              >
-                <Pencil className="size-3" />
-              </button>
+              {podeAdministrar && (
+                <button
+                  type="button"
+                  title="Editar eixo"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openEixoModal({ mode: 'edit', eixoId: eixo.id })
+                  }}
+                  className={cn('mr-1 flex size-7 flex-none items-center justify-center rounded-md text-white/40', isSelected && 'text-white/80')}
+                >
+                  <Pencil className="size-3" />
+                </button>
+              )}
             </div>
           )
         })}
-        <button
-          type="button"
-          onClick={() => openEixoModal({ mode: 'create' })}
-          className="mt-1.5 flex items-center gap-2 rounded-lg border border-dashed border-white/30 px-3 py-2.25 text-sm text-white/75"
-        >
-          <Plus className="size-3.5" />
-          Novo eixo
-        </button>
+        {podeAdministrar && (
+          <button
+            type="button"
+            onClick={() => openEixoModal({ mode: 'create' })}
+            className="mt-1.5 flex items-center gap-2 rounded-lg border border-dashed border-white/30 px-3 py-2.25 text-sm text-white/75"
+          >
+            <Plus className="size-3.5" />
+            Novo eixo
+          </button>
+        )}
       </div>
     </aside>
   )

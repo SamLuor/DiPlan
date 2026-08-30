@@ -31,9 +31,11 @@ export function RailNav() {
         <button type="button" title="Eixos" onClick={() => navigate({ to: '/app/eixos' })} className={itemClass(pathname.startsWith('/app/eixos'))}>
           <LayoutGrid className="size-5" />
         </button>
-        <button type="button" title="Usuários" onClick={() => navigate({ to: '/app/usuarios' })} className={itemClass(pathname.startsWith('/app/usuarios'))}>
-          <Users className="size-5" />
-        </button>
+        {currentUser?.perfil === 'diretoria' && (
+          <button type="button" title="Usuários" onClick={() => navigate({ to: '/app/usuarios' })} className={itemClass(pathname.startsWith('/app/usuarios'))}>
+            <Users className="size-5" />
+          </button>
+        )}
         <button type="button" title="Calendário" onClick={() => navigate({ to: '/app/calendario' })} className={itemClass(pathname.startsWith('/app/calendario'))}>
           <Calendar className="size-5" />
         </button>
@@ -49,9 +51,11 @@ export function RailNav() {
         )}
       </div>
       <div className="relative mt-auto flex flex-col gap-1.5">
-        <button type="button" title="Configurações" onClick={() => navigate({ to: '/app/usuarios' })} className={itemClass(false)}>
-          <Settings className="size-4.5" />
-        </button>
+        {currentUser?.perfil === 'diretoria' && (
+          <button type="button" title="Configurações" onClick={() => navigate({ to: '/app/usuarios' })} className={itemClass(false)}>
+            <Settings className="size-4.5" />
+          </button>
+        )}
         <button type="button" title="Sair" onClick={() => logoutMutation.mutate()} className={itemClass(false)}>
           <LogOut className="size-4.5" />
         </button>
