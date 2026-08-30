@@ -43,6 +43,13 @@
       "when": 1788099426020,
       "tag": "0005_spotty_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788101816451,
+      "tag": "0006_keen_mariko_yashida",
+      "breakpoints": true
     }
   ]
 }

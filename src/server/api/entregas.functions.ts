@@ -27,7 +27,7 @@ import { usuarioRepository } from '~/server/repository/usuario.repository.drizzl
 const repos: EntregaRepos = { entregas: entregaRepository, planos: planoRepository, eixos: eixoRepository, usuarios: usuarioRepository }
 
 async function requireActor() {
-  const { actor } = await requireActorWithAbility(usuarioRepository, eixoRepository)
+  const { actor } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
   return actor
 }
 
@@ -48,14 +48,23 @@ const entregaFormSchema = z.object({
 export const listEntregasFn = createServerFn({ method: 'GET' })
   .validator(z.object({ planoId: z.string().optional() }).optional())
   .handler(async ({ data }) => {
-    if (data?.planoId) return entregaRepository.findByPlano(data.planoId)
-    return entregaRepository.findAll()
+    const { ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
+    const entregas = data?.planoId ? await entregaRepository.findByPlano(data.planoId) : await entregaRepository.findAll()
+    const planos = await planoRepository.findAll()
+    const eixoIdPorPlano = new Map(planos.map((p) => [p.id, p.eixoId]))
+    return entregas.filter((e) => ability.can('read', subject('Entrega', { ...e, eixoId: eixoIdPorPlano.get(e.planoId) })))
   })
 
 export const getEntregaFn = createServerFn({ method: 'GET' })
   .validator(z.object({ id: z.string().min(1) }))
   .handler(async ({ data }) => {
-    return entregaRepository.findById(data.id)
+    const { ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
+    const entrega = await entregaRepository.findById(data.id)
+    if (!entrega) return null
+    const plano = await planoRepository.findById(entrega.planoId)
+    // 404-like (null) em vez de 403 — não revela se a entrega existe pra quem não tem acesso.
+    if (ability.cannot('read', subject('Entrega', { ...entrega, eixoId: plano?.eixoId }))) return null
+    return entrega
   })
 
 export const entregasQueryOptions = (planoId?: string) =>
@@ -73,7 +82,7 @@ export const entregaQueryOptions = (id: string) =>
 export const createEntregaFn = createServerFn({ method: 'POST' })
   .validator(entregaFormSchema.partial({ dataInicio: true }))
   .handler(async ({ data }) => {
-    const { ability } = await requireActorWithAbility(usuarioRepository, eixoRepository)
+    const { ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
     const plano = await planoRepository.findById(data.planoId)
     if (ability.cannot('create', subject('Entrega', { eixoId: plano?.eixoId }))) throw new Error('Sem permissão para criar entrega.')
     return createEntrega(repos, { dataInicio: null, ...data })
@@ -82,7 +91,7 @@ export const createEntregaFn = createServerFn({ method: 'POST' })
 export const updateEntregaFn = createServerFn({ method: 'POST' })
   .validator(z.object({ id: z.string().min(1) }).and(entregaFormSchema.partial()))
   .handler(async ({ data }) => {
-    const { ability } = await requireActorWithAbility(usuarioRepository, eixoRepository)
+    const { ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
     const { id, ...patch } = data
     const entrega = await entregaRepository.findById(id)
     if (!entrega) throw new Error('Entrega não encontrada.')
@@ -94,7 +103,7 @@ export const updateEntregaFn = createServerFn({ method: 'POST' })
 export const moveEntregaToStatusFn = createServerFn({ method: 'POST' })
   .validator(z.object({ id: z.string().min(1), status: situacaoSchema }))
   .handler(async ({ data }) => {
-    const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository)
+    const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
     const entrega = await entregaRepository.findById(data.id)
     if (!entrega) throw new Error('Entrega não encontrada.')
     const plano = await planoRepository.findById(entrega.planoId)
@@ -106,7 +115,7 @@ export const moveEntregaToStatusFn = createServerFn({ method: 'POST' })
 export const performAcaoFn = createServerFn({ method: 'POST' })
   .validator(z.object({ id: z.string().min(1) }))
   .handler(async ({ data }) => {
-    const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository)
+    const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
     const entrega = await entregaRepository.findById(data.id)
     if (!entrega) throw new Error('Entrega não encontrada.')
     const plano = await planoRepository.findById(entrega.planoId)

@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { Input } from '~/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
 import { eixosQueryOptions } from '~/server/api/eixos.functions'
 import { updateUsuarioPerfilFn, usuariosQueryOptions } from '~/server/api/usuarios.functions'
@@ -38,6 +40,14 @@ function PermissoesPage() {
   const queryClient = useQueryClient()
   const { data: usuarios = [] } = useQuery(usuariosQueryOptions())
   const { data: eixos = [] } = useQuery(eixosQueryOptions())
+  const [busca, setBusca] = useState('')
+  const [filtroEixoId, setFiltroEixoId] = useState('todos')
+
+  const usuariosFiltrados = usuarios.filter((u) => {
+    const bateBusca = u.nome.toLowerCase().includes(busca.trim().toLowerCase());
+    const bateEixo = filtroEixoId === 'todos' ? true : filtroEixoId === 'sem-eixo' ? !u.eixoId : u.eixoId === filtroEixoId
+    return bateBusca && bateEixo
+  })
 
   const mutation = useMutation({
     mutationFn: (input: { id: string; perfil: Perfil }) => updateUsuarioPerfilFn({ data: input }),
@@ -53,9 +63,27 @@ function PermissoesPage() {
       <h2 className="text-[25px] font-medium tracking-tight text-foreground">Perfil e Permissões</h2>
       <p className="mt-1 text-sm text-muted-foreground">Restrito à Diretoria. Ver `domain-info/rbac-spec.md` para o detalhamento completo.</p>
 
-      <div className="mt-6 overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_var(--secondary)]">
-        <table className="w-full text-sm">
-          <thead>
+      <div className="mt-5 flex flex-wrap gap-2.5">
+        <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome..." className="w-64" />
+        <Select value={filtroEixoId} onValueChange={setFiltroEixoId}>
+          <SelectTrigger className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os eixos</SelectItem>
+            <SelectItem value="sem-eixo">Sem eixo (Diretoria)</SelectItem>
+            {eixos.map((e) => (
+              <SelectItem key={e.id} value={e.id}>
+                {e.nome}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_var(--secondary)]">
+        <table className="w-full text-sm overflow-scroll">
+          <thead className=''>
             <tr className="border-b text-left text-xs text-muted-foreground">
               <th className="px-4 py-3 font-medium">Usuário</th>
               <th className="px-4 py-3 font-medium">Eixo</th>
@@ -63,7 +91,14 @@ function PermissoesPage() {
             </tr>
           </thead>
           <tbody>
-            {usuarios.map((u) => (
+            {usuariosFiltrados.length === 0 && (
+              <tr>
+                <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">
+                  Nenhum usuário encontrado.
+                </td>
+              </tr>
+            )}
+            {usuariosFiltrados.map((u) => (
               <tr key={u.id} className="border-b last:border-none">
                 <td className="px-4 py-2.5">
                   <div className="font-medium text-foreground">{u.nome}</div>

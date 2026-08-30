@@ -11,9 +11,8 @@ export const usuarios = pgTable('usuarios', {
   modo: userModoEnum('modo').notNull().default('senha'),
   /** Fail-closed: usuário novo começa sem privilégio nenhum até a Diretoria promover. */
   perfil: perfilEnum('perfil').notNull().default('operacional'),
-  eixoId: uuid('eixo_id')
-    .notNull()
-    .references(() => eixos.id, { onDelete: 'cascade' }),
+  /** Nulo só faz sentido pra Diretoria — ela não pertence a nenhum eixo específico, vê/administra tudo. */
+  eixoId: uuid('eixo_id').references(() => eixos.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })

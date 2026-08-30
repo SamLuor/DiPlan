@@ -89,6 +89,6 @@ export async function setPassword(
   if (!usuario) throw new InvalidTokenError()
 
   const senhaHash = await hashPassword(novaSenha)
-  await usuarioRepo.update(usuario.id, { nome: usuario.nome, email: usuario.email, modo: usuario.modo, senhaHash, eixoId: usuario.eixoId })
+  await usuarioRepo.update(usuario.id, { nome: usuario.nome, email: usuario.email, modo: usuario.modo, senhaHash, perfil: usuario.perfil, eixoId: usuario.eixoId })
   await tokenRepo.markUsed(token)
 }

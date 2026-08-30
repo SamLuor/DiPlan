@@ -4,6 +4,7 @@ import { createMongoAbility } from '@casl/ability'
 import { defineAbilityFor, type AppAbility } from '~/lib/ability'
 import { currentUserQueryOptions } from '~/server/api/auth.functions'
 import { eixosQueryOptions } from '~/server/api/eixos.functions'
+import { entregasQueryOptions } from '~/server/api/entregas.functions'
 
 const EMPTY_ABILITY = createMongoAbility([]) as AppAbility
 
@@ -11,10 +12,15 @@ const EMPTY_ABILITY = createMongoAbility([]) as AppAbility
 export function useAbility(): AppAbility {
   const { data: currentUser } = useQuery(currentUserQueryOptions())
   const { data: eixos = [] } = useQuery(eixosQueryOptions())
+  const { data: entregas = [] } = useQuery(entregasQueryOptions())
 
   return useMemo(() => {
     if (!currentUser) return EMPTY_ABILITY
     const eixosChefiados = eixos.filter((e) => e.chefiaUserId === currentUser.id).map((e) => e.id)
-    return defineAbilityFor(currentUser, { eixosChefiados })
-  }, [currentUser, eixos])
+    const planosComEntregaPropria =
+      currentUser.perfil === 'operacional'
+        ? [...new Set(entregas.filter((e) => e.responsavelUserId === currentUser.id).map((e) => e.planoId))]
+        : []
+    return defineAbilityFor(currentUser, { eixosChefiados, planosComEntregaPropria })
+  }, [currentUser, eixos, entregas])
 }

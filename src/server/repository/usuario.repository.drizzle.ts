@@ -39,7 +39,7 @@ export const usuarioRepository: UsuarioRepository = {
   async create(data) {
     const [row] = await db
       .insert(usuarios)
-      .values({ nome: data.nome, email: data.email, modo: data.modo, senhaHash: data.senhaHash, eixoId: data.eixoId })
+      .values({ nome: data.nome, email: data.email, modo: data.modo, senhaHash: data.senhaHash, perfil: data.perfil, eixoId: data.eixoId })
       .returning(PUBLIC_COLUMNS)
     return row as Usuario
   },
@@ -47,7 +47,7 @@ export const usuarioRepository: UsuarioRepository = {
   async update(id, data) {
     const [row] = await db
       .update(usuarios)
-      .set({ nome: data.nome, email: data.email, modo: data.modo, senhaHash: data.senhaHash, eixoId: data.eixoId, updatedAt: new Date() })
+      .set({ nome: data.nome, email: data.email, modo: data.modo, senhaHash: data.senhaHash, perfil: data.perfil, eixoId: data.eixoId, updatedAt: new Date() })
       .where(eq(usuarios.id, id))
       .returning(PUBLIC_COLUMNS)
     return row ?? null

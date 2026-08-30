@@ -48,6 +48,24 @@ O documento fonte (Seções 3 e 4) tem duas inconsistências internas envolvendo
 
 `eixosChefiados` = lista de `eixos.id` onde `eixos.chefiaUserId === usuario.id`, resolvida contra a lista global de usuários — mesma lógica já usada em `isChefiaAtual` (`src/server/core/shared/rules.ts`). **Não** é necessariamente o `usuarios.eixoId` do próprio usuário — uma chefia é definida por eixo, não por vínculo pessoal.
 
+## Visibilidade (leitura) — filtrada nas listagens, não só nas ações
+
+A matriz da Seção 4 fala de ações de escrita, mas a leitura também precisa respeitar o mesmo escopo — senão a UI mostraria dado que o usuário não tem permissão de ver. Aplicado em `listEixosFn`, `listPlanosFn`, `listEntregasFn` e `getEntregaFn`:
+
+- **Eixos**: Diretoria vê todos; Chefia vê só o(s) eixo(s) do(s) qual(is) é chefia (`eixosChefiados`); Operacional vê só o próprio eixo (`usuarios.eixoId`).
+- **Planos**: Diretoria vê todos; Chefia vê só os planos do(s) eixo(s) que chefia; Operacional vê só planos que tenham ao menos uma entrega da qual ele é responsável (`planosComEntregaPropria`, calculado em `requireActorWithAbility`/`useAbility`, já que não dá pra expressar isso como condição de campo direto no CASL — é uma relação com outra entidade).
+- **Entregas**: Diretoria vê todas; Chefia vê as do(s) eixo(s) que chefia; Operacional vê só as próprias (`responsavelUserId = self`). `getEntregaFn` devolve `null` (não um erro) quando o usuário não tem acesso — não revela se a entrega existe.
+
+## Vínculo usuário ↔ chefia (na criação/edição do usuário)
+
+Chefia só pode ser de **um** eixo — o próprio eixo do usuário (`usuarios.eixoId`), reforçando a Regra 1/2 da Seção 20 do documento fonte. Em vez de só editável na tela do eixo, `createUsuario`/`updateUsuario`/`updateUsuarioPerfil` (`usuario.usecases.ts#sincronizarChefia`) sincronizam automaticamente `eixos.chefiaUserId` sempre que o perfil muda:
+- Definir alguém como perfil Chefia → vira chefia do próprio eixo (removendo qualquer outro eixo onde ainda constasse como chefia).
+- Tirar alguém do perfil Chefia (ou apagar/trocar seu eixo) → o `chefiaUserId` do eixo onde ele era chefia é limpo.
+
+## Diretoria não precisa de eixo
+
+`usuarios.eixo_id` é **nullable** — só faz sentido ficar nulo pra Diretoria (acesso total, sem vínculo com um setor específico). Chefia e Operacional continuam exigindo eixo obrigatório (Regra 1, Seção 20).
+
 ## O que fica fora deste primeiro RBAC
 
 - Fluxo de aprovação de entregas (`spec-task-aprovacao-entrega.md`) — tarefa futura separada.

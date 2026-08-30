@@ -23,14 +23,15 @@ export type Acao =
   | 'ver-unidade'
   | 'ver-individual'
 
-/** Só os campos usados nas condições CASL (`eixoId`/`responsavelUserId`) — o objeto real pode ter mais campos. */
-type PlanoSubject = { eixoId?: string } & ForcedSubject<'Plano'>
+/** Só os campos usados nas condições CASL — o objeto real pode ter mais campos. */
+type EixoSubject = { id?: string } & ForcedSubject<'Eixo'>
+type PlanoSubject = { id?: string; eixoId?: string } & ForcedSubject<'Plano'>
 type EntregaSubject = { eixoId?: string; responsavelUserId?: string | null } & ForcedSubject<'Entrega'>
 
 type AppAbilities =
   | AbilityTuple<Acao, 'all'>
   | AbilityTuple<Acao, 'Usuario'>
-  | AbilityTuple<Acao, 'Eixo'>
+  | AbilityTuple<Acao, 'Eixo' | EixoSubject>
   | AbilityTuple<Acao, 'Relatorio'>
   | AbilityTuple<Acao, 'Plano' | PlanoSubject>
   | AbilityTuple<Acao, 'Entrega' | EntregaSubject>
@@ -40,11 +41,14 @@ export type AppAbility = MongoAbility<AppAbilities>
 export interface AbilityUser {
   id: string
   perfil: Perfil
+  eixoId: string | null
 }
 
-/** Chefia é definida por eixo (eixos.chefiaUserId), não pelo eixoId do próprio usuário — precisa ser resolvido antes de chamar isso. */
 export interface AbilityContext {
+  /** Eixo(s) dos quais o usuário é chefia (`eixos.chefiaUserId`) — não é o mesmo que `usuario.eixoId`. */
   eixosChefiados: string[]
+  /** Só relevante pra Operacional: planos que têm ao menos uma entrega da qual ele é responsável. */
+  planosComEntregaPropria: string[]
 }
 
 /**
@@ -55,12 +59,14 @@ export function defineAbilityFor(usuario: AbilityUser, ctx: AbilityContext): App
   const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility)
 
   if (usuario.perfil === 'diretoria') {
+    // Diretoria não precisa estar vinculada a eixo nenhum — acesso total, sem escopo.
     can('manage', 'all')
     return build()
   }
 
   if (usuario.perfil === 'chefia') {
     const doEixo = { eixoId: { $in: ctx.eixosChefiados } }
+    can('read', 'Eixo', { id: { $in: ctx.eixosChefiados } })
     can(['create', 'read', 'update', 'delete'], 'Plano', doEixo)
     can(['create', 'read', 'update', 'delete', 'reabrir', 'iniciar', 'registrarAndamento', 'anexar', 'delegar', 'solicitarRevisao', 'concluir'], 'Entrega', doEixo)
     can('ver-unidade', 'Relatorio')
@@ -70,6 +76,8 @@ export function defineAbilityFor(usuario: AbilityUser, ctx: AbilityContext): App
 
   // Operacional
   const proprias = { responsavelUserId: usuario.id }
+  if (usuario.eixoId) can('read', 'Eixo', { id: usuario.eixoId })
+  can('read', 'Plano', { id: { $in: ctx.planosComEntregaPropria } })
   can('read', 'Entrega', proprias)
   // Contradição 1 (rbac-spec.md): Operacional pode editar o descritivo das entregas das quais é responsável.
   can('update', 'Entrega', proprias)
@@ -78,7 +86,7 @@ export function defineAbilityFor(usuario: AbilityUser, ctx: AbilityContext): App
   cannot('create', 'Entrega')
   cannot('delete', 'Entrega')
   cannot('reabrir', 'Entrega')
-  cannot(['create', 'read', 'update', 'delete'], 'Plano')
+  cannot(['create', 'update', 'delete'], 'Plano')
   can('ver-individual', 'Relatorio')
   return build()
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "usuarios" ALTER COLUMN "eixo_id" DROP NOT NULL;

@@ -7,7 +7,8 @@ export interface Usuario {
   email: string
   modo: UserModo
   perfil: Perfil
-  eixoId: string
+  /** Nulo só pra Diretoria (não pertence a um eixo específico). */
+  eixoId: string | null
 }
 
 /** Só usado internamente pelo fluxo de autenticação — nunca deve sair da camada core/auth. */
@@ -20,7 +21,9 @@ export interface NovoUsuarioInput {
   email: string
   modo: UserModo
   senhaHash: string | null
-  eixoId: string
+  perfil: Perfil
+  /** Nulo só pra Diretoria (não pertence a um eixo específico). */
+  eixoId: string | null
 }
 
 export interface UsuarioRepository {
