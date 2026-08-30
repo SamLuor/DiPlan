@@ -68,6 +68,24 @@ A aplicação agora faz upload real de anexos pro S3 (`src/server/infra/storage/
 4. **Block Public Access**: manter todas as opções marcadas (bucket 100% privado)
 5. Create bucket
 
+**Configurar CORS** (obrigatório — sem isso, o navegador bloqueia o upload direto pro S3 com erro de CORS):
+1. No bucket criado → aba **Permissions** → **Cross-origin resource sharing (CORS)** → **Edit**
+2. Colar:
+   ```json
+   [
+     {
+       "AllowedHeaders": ["*"],
+       "AllowedMethods": ["PUT"],
+       "AllowedOrigins": ["*"],
+       "ExposeHeaders": [],
+       "MaxAgeSeconds": 3000
+     }
+   ]
+   ```
+3. Save changes
+
+(`AllowedOrigins: ["*"]` é seguro aqui porque o bucket continua privado — CORS só controla se o JS do navegador pode tentar a requisição, não substitui a autorização da URL pré-assinada. Evita também ter que atualizar essa lista toda vez que o IP/domínio mudar.)
+
 **Criar a IAM role e anexar à instância:**
 1. Console → **IAM** → **Roles** → **Create role**
 2. Trusted entity: **AWS service** → **EC2**
