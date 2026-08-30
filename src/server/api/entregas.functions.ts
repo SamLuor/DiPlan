@@ -103,20 +103,20 @@ export const addNotaFn = createServerFn({ method: 'POST' })
     z.object({
       entregaId: z.string().min(1),
       texto: z.string().min(1),
-      autor: z.string().min(1),
       proximoPasso: z.string().optional(),
-      anexoNome: z.string().nullable().optional(),
     }),
   )
   .handler(async ({ data }) => {
+    const actor = await requireActor()
     const { entregaId, ...input } = data
-    return addNota(repos, entregaId, input)
+    return addNota(repos, entregaId, input, actor)
   })
 
 export const editNotaFn = createServerFn({ method: 'POST' })
   .validator(z.object({ notaId: z.string().min(1), texto: z.string().min(1) }))
   .handler(async ({ data }) => {
-    return editNota(repos, data.notaId, data.texto)
+    const actor = await requireActor()
+    return editNota(repos, data.notaId, data.texto, actor)
   })
 
 export const deleteNotaFn = createServerFn({ method: 'POST' })
@@ -143,7 +143,7 @@ export const createAnexoUploadUrlFn = createServerFn({ method: 'POST' })
   })
 
 export const confirmAnexoUploadFn = createServerFn({ method: 'POST' })
-  .validator(z.object({ entregaId: z.string().min(1), key: z.string().min(1) }).and(anexoMetaSchema))
+  .validator(z.object({ entregaId: z.string().min(1), key: z.string().min(1), notaId: z.string().optional() }).and(anexoMetaSchema))
   .handler(async ({ data }) => {
     await requireActor()
     const { entregaId, ...input } = data

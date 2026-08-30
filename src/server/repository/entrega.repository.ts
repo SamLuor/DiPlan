@@ -28,15 +28,17 @@ export interface NovoAnexoInput {
   nome: string
   contentType: string
   tamanho: number
+  notaId?: string | null
 }
 
 export interface Nota {
   id: string
   texto: string
   autor: string
+  autorUserId: string | null
   tipo: 'manual' | 'sistema'
   proximoPasso: string | null
-  anexoNome: string | null
+  anexo: Anexo | null
   editado: boolean
   excluido: boolean
   dataHora: Date
@@ -77,9 +79,9 @@ export interface EntregaInput {
 export interface NovaNotaInput {
   texto: string
   autor: string
+  autorUserId?: string | null
   tipo: 'manual' | 'sistema'
   proximoPasso?: string | null
-  anexoNome?: string | null
 }
 
 export interface NovaSolicitacaoInput {
@@ -99,12 +101,14 @@ export interface EntregaRepository {
   updateSituacao(id: string, situacao: SituacaoEntrega): Promise<Entrega | null>
 
   addNota(entregaId: string, nota: NovaNotaInput): Promise<Nota>
+  findNotaById(notaId: string): Promise<Nota | null>
   editNota(notaId: string, texto: string): Promise<Nota | null>
   softDeleteNota(notaId: string): Promise<void>
 
   addAnexo(entregaId: string, data: NovoAnexoInput): Promise<Anexo>
   removeAnexo(anexoId: string): Promise<void>
   findAnexoForDownload(anexoId: string): Promise<{ key: string; nome: string } | null>
+  findAnexoIdByNota(notaId: string): Promise<string | null>
 
   addSolicitacao(entregaId: string, data: NovaSolicitacaoInput): Promise<Solicitacao>
   responderSolicitacao(solicitacaoId: string, userId: string): Promise<void>

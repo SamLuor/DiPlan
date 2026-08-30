@@ -107,25 +107,26 @@ export async function performAcao(repos: EntregaRepos, id: string, actor: Actor)
   return updated
 }
 
-export async function addNota(
-  repos: EntregaRepos,
-  entregaId: string,
-  input: { texto: string; autor: string; proximoPasso?: string; anexoNome?: string | null },
-) {
+export async function addNota(repos: EntregaRepos, entregaId: string, input: { texto: string; proximoPasso?: string }, actor: Actor) {
   const texto = input.texto.trim()
   if (!texto) throw new Error('Texto da nota é obrigatório.')
+  const usuario = await repos.usuarios.findById(actor.id)
   return repos.entregas.addNota(entregaId, {
     texto,
-    autor: input.autor.trim() || 'Usuário',
+    autor: usuario?.nome ?? actor.email,
+    autorUserId: actor.id,
     tipo: 'manual',
     proximoPasso: input.proximoPasso?.trim() || null,
-    anexoNome: input.anexoNome ?? null,
   })
 }
 
-export async function editNota(repos: EntregaRepos, notaId: string, texto: string) {
+/** Edição restrita ao próprio autor do comentário — diferente da exclusão, que é restrita à chefia (`deleteNota`). */
+export async function editNota(repos: EntregaRepos, notaId: string, texto: string, actor: Actor) {
   const trimmed = texto.trim()
   if (!trimmed) throw new Error('Texto da nota é obrigatório.')
+  const nota = await repos.entregas.findNotaById(notaId)
+  if (!nota) throw new Error('Nota não encontrada.')
+  if (nota.autorUserId !== actor.id) throw new Error('Somente o autor pode editar este comentário.')
   const updated = await repos.entregas.editNota(notaId, trimmed)
   if (!updated) throw new Error('Nota não encontrada.')
   return updated
@@ -167,7 +168,16 @@ export async function createAnexoUploadUrl(repos: EntregaRepos, entregaId: strin
   return { key, uploadUrl }
 }
 
-export async function confirmAnexoUpload(repos: EntregaRepos, entregaId: string, data: { key: string } & NovoAnexoMeta) {
+/**
+ * Um comentário tem no máximo um anexo: se `notaId` já tiver um anexo anterior,
+ * ele é removido (S3 + banco) antes de confirmar o novo, sem depender do front
+ * pra fazer essa troca em duas chamadas separadas.
+ */
+export async function confirmAnexoUpload(repos: EntregaRepos, entregaId: string, data: { key: string; notaId?: string | null } & NovoAnexoMeta) {
+  if (data.notaId) {
+    const anteriorId = await repos.entregas.findAnexoIdByNota(data.notaId)
+    if (anteriorId) await removeAnexo(repos, anteriorId)
+  }
   return repos.entregas.addAnexo(entregaId, data)
 }
 

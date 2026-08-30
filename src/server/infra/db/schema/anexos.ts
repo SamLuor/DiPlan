@@ -1,11 +1,14 @@
 import { integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { entregas } from './entregas'
+import { notas } from './notas'
 
 export const anexos = pgTable('anexos', {
   id: uuid('id').defaultRandom().primaryKey(),
   entregaId: uuid('entrega_id')
     .notNull()
     .references(() => entregas.id, { onDelete: 'cascade' }),
+  /** Nulo = anexo da entrega (AttachmentsList); preenchido = anexo de um comentário específico. */
+  notaId: uuid('nota_id').references(() => notas.id, { onDelete: 'cascade' }),
   /** Nome original do arquivo, só para exibição — nunca usado para montar o `key` do S3. */
   nome: text('nome').notNull(),
   /** Chave do objeto no S3 (gerada com uuid, ver `infra/storage/s3.server.ts`). Sem versionamento ainda. */

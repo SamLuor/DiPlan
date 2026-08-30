@@ -22,7 +22,7 @@ export function DetailTimeline({ entrega }: { entrega: EntregaDetalhada }) {
       {notasOrdenadas.length > 0 && (
         <div className="flex flex-col gap-2">
           {notasOrdenadas.map((nota) => (
-            <TimelineNoteItem key={nota.id} entregaId={entrega.id} nota={nota} canDelete={canDelete} />
+            <TimelineNoteItem key={nota.id} entregaId={entrega.id} nota={nota} canDelete={canDelete} currentUserId={currentUser?.id ?? null} />
           ))}
         </div>
       )}

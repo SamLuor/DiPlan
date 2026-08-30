@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '~/server/infra/db/client'
 import { anexos, entregas, notas, solicitacaoResponsaveis, solicitacoes } from '~/server/infra/db/schema'
-import type { Entrega, EntregaDetalhada, EntregaRepository, Solicitacao } from './entrega.repository'
+import type { Entrega, EntregaDetalhada, EntregaRepository, Nota, Solicitacao } from './entrega.repository'
 
 // Nunca inclui `key` — é detalhe interno de armazenamento, não deve chegar ao client.
 const ANEXO_COLUMNS = {
@@ -9,6 +9,11 @@ const ANEXO_COLUMNS = {
   nome: anexos.nome,
   contentType: anexos.contentType,
   tamanho: anexos.tamanho,
+}
+
+async function loadAnexoForNota(notaId: string) {
+  const [row] = await db.select(ANEXO_COLUMNS).from(anexos).where(eq(anexos.notaId, notaId)).limit(1)
+  return row ?? null
 }
 
 const LIST_COLUMNS = {
@@ -56,11 +61,19 @@ export const entregaRepository: EntregaRepository = {
   async findById(id) {
     const [entrega] = await db.select(LIST_COLUMNS).from(entregas).where(eq(entregas.id, id)).limit(1)
     if (!entrega) return null
-    const [entregaAnexos, entregaNotas, entregaSolicitacoes] = await Promise.all([
-      db.select(ANEXO_COLUMNS).from(anexos).where(eq(anexos.entregaId, id)),
+    const [allAnexos, rawNotas, entregaSolicitacoes] = await Promise.all([
+      db
+        .select({ ...ANEXO_COLUMNS, notaId: anexos.notaId })
+        .from(anexos)
+        .where(eq(anexos.entregaId, id)),
       db.select().from(notas).where(eq(notas.entregaId, id)),
       loadSolicitacoes(id),
     ])
+    const entregaAnexos = allAnexos.filter((a) => !a.notaId).map(({ notaId: _notaId, ...rest }) => rest)
+    const entregaNotas: Nota[] = rawNotas.map((n) => ({
+      ...n,
+      anexo: allAnexos.find((a) => a.notaId === n.id) ?? null,
+    }))
     const detalhada: EntregaDetalhada = { ...(entrega as Entrega), anexos: entregaAnexos, notas: entregaNotas, solicitacoes: entregaSolicitacoes }
     return detalhada
   },
@@ -87,17 +100,24 @@ export const entregaRepository: EntregaRepository = {
         entregaId,
         texto: nota.texto,
         autor: nota.autor,
+        autorUserId: nota.autorUserId ?? null,
         tipo: nota.tipo,
         proximoPasso: nota.proximoPasso ?? null,
-        anexoNome: nota.anexoNome ?? null,
       })
       .returning()
-    return row!
+    return { ...row!, anexo: null }
+  },
+
+  async findNotaById(notaId) {
+    const [row] = await db.select().from(notas).where(eq(notas.id, notaId)).limit(1)
+    if (!row) return null
+    return { ...row, anexo: await loadAnexoForNota(notaId) }
   },
 
   async editNota(notaId, texto) {
     const [row] = await db.update(notas).set({ texto, editado: true }).where(eq(notas.id, notaId)).returning()
-    return row ?? null
+    if (!row) return null
+    return { ...row, anexo: await loadAnexoForNota(notaId) }
   },
 
   async softDeleteNota(notaId) {
@@ -119,6 +139,11 @@ export const entregaRepository: EntregaRepository = {
   async findAnexoForDownload(anexoId) {
     const [row] = await db.select({ key: anexos.key, nome: anexos.nome }).from(anexos).where(eq(anexos.id, anexoId)).limit(1)
     return row ?? null
+  },
+
+  async findAnexoIdByNota(notaId) {
+    const [row] = await db.select({ id: anexos.id }).from(anexos).where(eq(anexos.notaId, notaId)).limit(1)
+    return row?.id ?? null
   },
 
   async addSolicitacao(entregaId, data) {

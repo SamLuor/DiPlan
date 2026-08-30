@@ -26,7 +26,7 @@ export function PlanosKanbanBoard({ eixoId, planos }: { eixoId: string; planos: 
       <div className="px-8">
         <div className="mt-4.5 flex flex-wrap items-center justify-between gap-4">
           <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Planos</span>
-          <Button variant="outline" className="border-primary text-primary hover:bg-accent hover:text-primary" onClick={() => openPlanoModal({ mode: 'create', eixoId })}>
+          <Button variant="dashed" className="cursor-pointer border-primary text-primary hover:bg-accent hover:text-primary" onClick={() => openPlanoModal({ mode: 'create', eixoId })}>
             <Plus className="size-3" /> Novo plano
           </Button>
         </div>
@@ -34,7 +34,7 @@ export function PlanosKanbanBoard({ eixoId, planos }: { eixoId: string; planos: 
         {planos.length === 0 && (
           <div className="mt-5 flex items-center justify-between gap-4 rounded-xl bg-card p-6">
             <div className="text-sm text-muted-foreground">Este eixo ainda não tem planos de entrega.</div>
-            <Button variant="outline" className="border-primary text-primary hover:bg-accent hover:text-primary" onClick={() => openPlanoModal({ mode: 'create', eixoId })}>
+            <Button variant="dashed" className="cursor-pointer border-primary text-primary hover:bg-accent hover:text-primary" onClick={() => openPlanoModal({ mode: 'create', eixoId })}>
               + Novo plano
             </Button>
           </div>
