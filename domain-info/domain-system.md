@@ -27,7 +27,7 @@ O documento original descreve um sistema completo com RBAC de 3 níveis, colabor
 
 | Decisão | O que o documento original pedia | O que foi decidido para o 1º ciclo |
 |---|---|---|
-| Controle de acesso | RBAC completo (Diretoria/Chefia/Operacional) com matriz de permissões (Seções 3, 4) | Sem RBAC por enquanto — qualquer usuário logado vê e edita qualquer entrega de qualquer eixo. Login existe (para saber autor/data), mas sem diferenciação de perfil |
+| Controle de acesso | RBAC completo (Diretoria/Chefia/Operacional) com matriz de permissões (Seções 3, 4) | **✅ Implementado** (branch `feature/rbac-casl`, ver `domain-info/rbac-spec.md`) — CASL, três perfis, escopo de Chefia por eixo (`eixos.chefiaUserId`), escopo de Operacional por responsabilidade (`entregas.responsavelUserId`). Duas contradições internas do documento fonte (Seção 3.3 vs. Seção 4) resolvidas e documentadas no spec |
 | Eixos/unidades | Estrutura hierárquica entre unidades | Lista plana e livre de eixos, sem hierarquia entre eles |
 | Vínculo usuário-eixo | Regra 1, Seção 20: "cada usuário deverá estar vinculado a uma unidade" (singular) | **Confirmado e respeitado**: 1 usuário → 1 eixo. (Uma sugestão anterior de permitir múltiplos vínculos foi descartada por não estar no documento) |
 | Chefia | Regra 2, Seção 20: "cada unidade deverá possuir uma chefia responsável" | A chefia é definida na tela do eixo (campo `chefiaUserId` apontando para um usuário já vinculado àquele eixo) — não é um atributo que o usuário carrega |
@@ -98,7 +98,6 @@ Lógica (`isOverdue()`):
 - **Não implementado (depende de módulos ausentes):** visão por nível de acesso (Operacional/Chefia/Diretoria — Seção 14 último parágrafo), marcadores de "atividades delegadas" e "revisões pendentes" (dependem do módulo de colaboração)
 
 ### 3.11. Não implementado ainda
-- RBAC completo (Seções 3, 4)
 - Dashboards (Seção 15)
 - Relatórios (Seção 16)
 - Notificações (Seção 17)
@@ -117,6 +116,15 @@ Lógica (`isOverdue()`):
 - **E-mail de definição de senha**: ao cadastrar um usuário (qualquer `modo`) ou pedir "esqueci minha senha", o sistema gera um token opaco de uso único (tabela `password_setup_tokens`, validade 2 dias) e envia um e-mail (Resend, com fallback de log no console em dev sem `RESEND_API_KEY`) com link para `/redefinir-senha?token=...`. O cadastro de usuário não tem mais campo de senha — a senha só é definida pelo próprio usuário por esse link.
 - Passagem de segurança com Semgrep (`semgrep --config auto src/`) rodada sobre o código-fonte após a religação: 0 achados. Ver `domain-info/backend-spec.md` para o contrato completo e o registro de verificação.
 
+### 3.13. RBAC completo (branch `feature/rbac-casl`)
+
+- Três perfis (`usuarios.perfil`): Diretoria (`can('manage', 'all')`), Chefia (escopo por eixo, via `eixos.chefiaUserId`) e Operacional (escopo por `entregas.responsavelUserId`).
+- Módulo isomórfico `src/lib/ability.ts` (CASL) — mesma lógica usada no servidor (enforcement, não contornável) e no client (`src/hooks/useAbility.ts`, só esconde/desabilita UI).
+- Enforcement aplicado nos endpoints de criação/edição/ação de plano e entrega, e nos endpoints administrativos de usuário/eixo (`src/server/core/auth/actor.ts#requireActorWithAbility`).
+- Tela nova **Perfil e Permissões** (`/app/admin/permissoes`, Diretoria-only): atribui perfil por usuário e mostra a matriz de referência.
+- Duas contradições internas do documento fonte (Seção 3.3 vs. Seção 4, ambas sobre o perfil Operacional) resolvidas e documentadas em `domain-info/rbac-spec.md` — não improvisadas silenciosamente no código.
+- **Fora deste primeiro RBAC**: fluxo real de aprovação de entregas (ver `domain-info/spec-task-aprovacao-entrega.md`, tarefa futura separada), exclusão de plano (não implementada em nenhum lugar do sistema ainda), telas de relatórios (não existem ainda).
+
 ---
 
 ## 4. Backlog priorizado (próximos passos)
@@ -131,7 +139,7 @@ Ordenado por impacto na integridade dos dados e na experiência de uso diário:
 6. **Tipos de entrega, competências e diretrizes** — cadastro estruturado (Seção 13), substituindo texto livre atual no campo tipo.
 7. **Pesquisa e filtros no kanban de entregas** — por plano, período, situação, prioridade, palavra-chave (Seção 12.1, aplicável independente de RBAC).
 8. **Versionamento de anexos** (Seção 10).
-9. **RBAC completo** (Seções 3, 4) — quando o volume de eixos/usuários justificar controle de acesso.
+9. ✅ **RBAC completo** (Seções 3, 4) — implementado com CASL, branch `feature/rbac-casl`. Ver `domain-info/rbac-spec.md`.
 10. **Dashboards** (Seção 15).
 11. **Relatórios** (Seção 16).
 12. **Notificações** (Seção 17).

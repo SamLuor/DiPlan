@@ -29,8 +29,10 @@ async function seedHomolog() {
   })
 
   await db.update(eixos).set({ chefiaUserId: admin.id }).where(eq(eixos.id, eixo.id))
+  // Primeiro usuário do ambiente — precisa ser Diretoria, senão ninguém consegue promover mais ninguém.
+  await usuarioRepository.updatePerfil(admin.id, 'diretoria')
 
-  console.log(`Seed concluído: eixo "${eixo.nome}", usuário "${admin.nome}" <${admin.email}> (chefia do eixo).`)
+  console.log(`Seed concluído: eixo "${eixo.nome}", usuário "${admin.nome}" <${admin.email}> (chefia do eixo, perfil Diretoria).`)
   console.log('E-mail de definição de senha enviado (ou logado no console do servidor, se RESEND_API_KEY não estiver configurada).')
 }
 

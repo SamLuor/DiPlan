@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { subject } from '@casl/ability'
 import { isOverdue } from '~/lib/domain'
+import { useAbility } from '~/hooks/useAbility'
 import { formatPrazo } from '~/lib/dates'
 import type { EntregaInput, SituacaoEntrega } from '~/server/repository/entrega.repository'
 import { Sheet, SheetContent, SheetTitle } from '~/components/ui/sheet'
@@ -51,6 +53,7 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
   const { data: planos = [] } = useQuery(planosQueryOptions())
   const { data: eixos = [] } = useQuery(eixosQueryOptions())
   const { data: usuarios = [] } = useQuery(usuariosQueryOptions())
+  const ability = useAbility()
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['entregas'] })
@@ -79,11 +82,12 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
   const eixoDoPlano = plano ? eixos.find((e) => e.id === plano.eixoId) : null
   const usuariosDoEixoDaEntrega = eixoDoPlano ? usuarios.filter((u) => u.eixoId === eixoDoPlano.id) : []
 
+  const entregaSubject = subject('Entrega', { ...entrega, eixoId: eixoDoPlano?.id })
   let actionLabel: string | null = null
   let showReabrir = false
-  if (entrega.situacao === 'aguardando') actionLabel = 'Iniciar'
-  else if (entrega.situacao === 'andamento') actionLabel = 'Concluir'
-  else showReabrir = true
+  if (entrega.situacao === 'aguardando' && ability.can('iniciar', entregaSubject)) actionLabel = 'Iniciar'
+  else if (entrega.situacao === 'andamento' && ability.can('concluir', entregaSubject)) actionLabel = 'Concluir'
+  else if (entrega.situacao === 'concluida' && ability.can('reabrir', entregaSubject)) showReabrir = true
 
   const overdue = isOverdue(entrega)
   const dataMin = plano?.dataInicio ?? undefined

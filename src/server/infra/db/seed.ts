@@ -17,11 +17,11 @@ async function seed() {
   const [marina, diego, carlos, julia, paulo] = await db
     .insert(usuarios)
     .values([
-      { nome: 'Marina Reis', email: 'marina.reis@empresa.com', modo: 'senha', senhaHash: defaultSenhaHash, eixoId: comercial!.id },
-      { nome: 'Diego Alves', email: 'diego.alves@empresa.com', modo: 'convite', senhaHash: null, eixoId: comercial!.id },
-      { nome: 'Carlos Nunes', email: 'carlos.nunes@empresa.com', modo: 'senha', senhaHash: defaultSenhaHash, eixoId: ti!.id },
-      { nome: 'Julia Prado', email: 'julia.prado@empresa.com', modo: 'senha', senhaHash: defaultSenhaHash, eixoId: ti!.id },
-      { nome: 'Paulo Costa', email: 'paulo.costa@empresa.com', modo: 'convite', senhaHash: null, eixoId: operacoes!.id },
+      { nome: 'Marina Reis', email: 'marina.reis@empresa.com', modo: 'senha', senhaHash: defaultSenhaHash, perfil: 'diretoria', eixoId: comercial!.id },
+      { nome: 'Diego Alves', email: 'diego.alves@empresa.com', modo: 'convite', senhaHash: null, perfil: 'operacional', eixoId: comercial!.id },
+      { nome: 'Carlos Nunes', email: 'carlos.nunes@empresa.com', modo: 'senha', senhaHash: defaultSenhaHash, perfil: 'chefia', eixoId: ti!.id },
+      { nome: 'Julia Prado', email: 'julia.prado@empresa.com', modo: 'senha', senhaHash: defaultSenhaHash, perfil: 'operacional', eixoId: ti!.id },
+      { nome: 'Paulo Costa', email: 'paulo.costa@empresa.com', modo: 'convite', senhaHash: null, perfil: 'chefia', eixoId: operacoes!.id },
     ])
     .returning()
 

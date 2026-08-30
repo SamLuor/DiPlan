@@ -1,10 +1,12 @@
 export type UserModo = 'senha' | 'convite'
+export type Perfil = 'diretoria' | 'chefia' | 'operacional'
 
 export interface Usuario {
   id: string
   nome: string
   email: string
   modo: UserModo
+  perfil: Perfil
   eixoId: string
 }
 
@@ -29,4 +31,5 @@ export interface UsuarioRepository {
   findByIdForAuth(id: string): Promise<UsuarioComSenha | null>
   create(data: NovoUsuarioInput): Promise<Usuario>
   update(id: string, data: NovoUsuarioInput): Promise<Usuario | null>
+  updatePerfil(id: string, perfil: Perfil): Promise<Usuario | null>
 }

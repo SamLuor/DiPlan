@@ -36,6 +36,13 @@
       "when": 1788059645622,
       "tag": "0004_loving_gamma_corps",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788099426020,
+      "tag": "0005_spotty_beast",
+      "breakpoints": true
     }
   ]
 }

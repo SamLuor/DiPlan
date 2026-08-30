@@ -1,6 +1,7 @@
 import { pgEnum } from 'drizzle-orm/pg-core'
 
 export const userModoEnum = pgEnum('user_modo', ['senha', 'convite'])
+export const perfilEnum = pgEnum('perfil', ['diretoria', 'chefia', 'operacional'])
 export const statusPlanoEnum = pgEnum('status_plano', ['planejado', 'execucao', 'concluido'])
 export const situacaoEntregaEnum = pgEnum('situacao_entrega', ['aguardando', 'andamento', 'concluida'])
 export const prioridadeEnum = pgEnum('prioridade', ['baixa', 'normal', 'alta', 'urgente'])

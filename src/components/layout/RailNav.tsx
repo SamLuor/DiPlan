@@ -1,8 +1,8 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Calendar, LayoutGrid, LogOut, Settings, Users } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Calendar, LayoutGrid, LogOut, Settings, ShieldCheck, Users } from 'lucide-react'
 import { cn } from '~/lib/utils'
-import { logoutFn } from '~/server/api/auth.functions'
+import { currentUserQueryOptions, logoutFn } from '~/server/api/auth.functions'
 
 const railBtn = 'flex size-10 items-center justify-center rounded-lg border-none text-white/60 transition-colors'
 
@@ -10,6 +10,7 @@ export function RailNav() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const { data: currentUser } = useQuery(currentUserQueryOptions())
 
   const logoutMutation = useMutation({
     mutationFn: () => logoutFn(),
@@ -36,6 +37,16 @@ export function RailNav() {
         <button type="button" title="Calendário" onClick={() => navigate({ to: '/app/calendario' })} className={itemClass(pathname.startsWith('/app/calendario'))}>
           <Calendar className="size-5" />
         </button>
+        {currentUser?.perfil === 'diretoria' && (
+          <button
+            type="button"
+            title="Perfil e Permissões"
+            onClick={() => navigate({ to: '/app/admin/permissoes' })}
+            className={itemClass(pathname.startsWith('/app/admin/permissoes'))}
+          >
+            <ShieldCheck className="size-5" />
+          </button>
+        )}
       </div>
       <div className="relative mt-auto flex flex-col gap-1.5">
         <button type="button" title="Configurações" onClick={() => navigate({ to: '/app/usuarios' })} className={itemClass(false)}>

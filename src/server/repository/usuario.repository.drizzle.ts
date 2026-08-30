@@ -8,6 +8,7 @@ const PUBLIC_COLUMNS = {
   nome: usuarios.nome,
   email: usuarios.email,
   modo: usuarios.modo,
+  perfil: usuarios.perfil,
   eixoId: usuarios.eixoId,
 }
 
@@ -49,6 +50,11 @@ export const usuarioRepository: UsuarioRepository = {
       .set({ nome: data.nome, email: data.email, modo: data.modo, senhaHash: data.senhaHash, eixoId: data.eixoId, updatedAt: new Date() })
       .where(eq(usuarios.id, id))
       .returning(PUBLIC_COLUMNS)
+    return row ?? null
+  },
+
+  async updatePerfil(id, perfil) {
+    const [row] = await db.update(usuarios).set({ perfil, updatedAt: new Date() }).where(eq(usuarios.id, id)).returning(PUBLIC_COLUMNS)
     return row ?? null
   },
 }

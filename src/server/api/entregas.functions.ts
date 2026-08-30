@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { queryOptions } from '@tanstack/react-query'
+import { subject } from '@casl/ability'
 import { z } from 'zod'
-import { currentUser } from '~/server/core/auth/auth.usecases'
 import {
   addNota,
   addSolicitacao,
@@ -16,9 +16,9 @@ import {
   removeAnexo,
   responderSolicitacao,
   updateEntrega,
-  type Actor,
   type EntregaRepos,
 } from '~/server/core/entregas/entrega.usecases'
+import { requireActorWithAbility } from '~/server/core/auth/actor'
 import { eixoRepository } from '~/server/repository/eixo.repository.drizzle'
 import { entregaRepository } from '~/server/repository/entrega.repository.drizzle'
 import { planoRepository } from '~/server/repository/plano.repository.drizzle'
@@ -26,10 +26,9 @@ import { usuarioRepository } from '~/server/repository/usuario.repository.drizzl
 
 const repos: EntregaRepos = { entregas: entregaRepository, planos: planoRepository, eixos: eixoRepository, usuarios: usuarioRepository }
 
-async function requireActor(): Promise<Actor> {
-  const user = await currentUser(usuarioRepository)
-  if (!user) throw new Error('Não autenticado.')
-  return { id: user.id, email: user.email }
+async function requireActor() {
+  const { actor } = await requireActorWithAbility(usuarioRepository, eixoRepository)
+  return actor
 }
 
 const prioridadeSchema = z.enum(['baixa', 'normal', 'alta', 'urgente'])
@@ -74,27 +73,45 @@ export const entregaQueryOptions = (id: string) =>
 export const createEntregaFn = createServerFn({ method: 'POST' })
   .validator(entregaFormSchema.partial({ dataInicio: true }))
   .handler(async ({ data }) => {
+    const { ability } = await requireActorWithAbility(usuarioRepository, eixoRepository)
+    const plano = await planoRepository.findById(data.planoId)
+    if (ability.cannot('create', subject('Entrega', { eixoId: plano?.eixoId }))) throw new Error('Sem permissão para criar entrega.')
     return createEntrega(repos, { dataInicio: null, ...data })
   })
 
 export const updateEntregaFn = createServerFn({ method: 'POST' })
   .validator(z.object({ id: z.string().min(1) }).and(entregaFormSchema.partial()))
   .handler(async ({ data }) => {
+    const { ability } = await requireActorWithAbility(usuarioRepository, eixoRepository)
     const { id, ...patch } = data
+    const entrega = await entregaRepository.findById(id)
+    if (!entrega) throw new Error('Entrega não encontrada.')
+    const plano = await planoRepository.findById(entrega.planoId)
+    if (ability.cannot('update', subject('Entrega', { ...entrega, eixoId: plano?.eixoId }))) throw new Error('Sem permissão para editar esta entrega.')
     return updateEntrega(repos, id, patch)
   })
 
 export const moveEntregaToStatusFn = createServerFn({ method: 'POST' })
   .validator(z.object({ id: z.string().min(1), status: situacaoSchema }))
   .handler(async ({ data }) => {
-    const actor = await requireActor()
+    const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository)
+    const entrega = await entregaRepository.findById(data.id)
+    if (!entrega) throw new Error('Entrega não encontrada.')
+    const plano = await planoRepository.findById(entrega.planoId)
+    const verbo = data.status === 'andamento' ? 'iniciar' : data.status === 'concluida' ? 'concluir' : 'reabrir'
+    if (ability.cannot(verbo, subject('Entrega', { ...entrega, eixoId: plano?.eixoId }))) throw new Error('Sem permissão para mover esta entrega.')
     return moveEntregaToStatus(repos, data.id, data.status, actor)
   })
 
 export const performAcaoFn = createServerFn({ method: 'POST' })
   .validator(z.object({ id: z.string().min(1) }))
   .handler(async ({ data }) => {
-    const actor = await requireActor()
+    const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository)
+    const entrega = await entregaRepository.findById(data.id)
+    if (!entrega) throw new Error('Entrega não encontrada.')
+    const plano = await planoRepository.findById(entrega.planoId)
+    const verbo = entrega.situacao === 'aguardando' ? 'iniciar' : entrega.situacao === 'andamento' ? 'concluir' : 'reabrir'
+    if (ability.cannot(verbo, subject('Entrega', { ...entrega, eixoId: plano?.eixoId }))) throw new Error('Sem permissão para executar esta ação.')
     return performAcao(repos, data.id, actor)
   })
 

@@ -1,8 +1,10 @@
 import { Plus } from 'lucide-react'
+import { subject } from '@casl/ability'
 import type { Plano, StatusPlano } from '~/server/repository/plano.repository'
 import { PlanoCard } from './PlanoCard'
 import { Button } from '~/components/ui/button'
 import { useUiStore } from '~/store/useUiStore'
+import { useAbility } from '~/hooks/useAbility'
 
 const COLUMNS: Array<{ key: StatusPlano; label: string }> = [
   { key: 'planejado', label: 'Planejado' },
@@ -12,23 +14,30 @@ const COLUMNS: Array<{ key: StatusPlano; label: string }> = [
 
 export function PlanosKanbanBoard({ eixoId, planos }: { eixoId: string; planos: Plano[] }) {
   const openPlanoModal = useUiStore((s) => s.openPlanoModal)
+  const ability = useAbility()
+  // Client só esconde o botão — a checagem real (que não pode ser burlada) já está no servidor (createPlanoFn).
+  const podeCriar = ability.can('create', subject('Plano', { eixoId }))
 
   return (
     <>
       <div className="px-8">
         <div className="mt-4.5 flex flex-wrap items-center justify-between gap-4">
           <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Planos</span>
-          <Button variant="dashed" className="cursor-pointer border-primary text-primary hover:bg-accent hover:text-primary" onClick={() => openPlanoModal({ mode: 'create', eixoId })}>
-            <Plus className="size-3" /> Novo plano
-          </Button>
+          {podeCriar && (
+            <Button variant="dashed" className="cursor-pointer border-primary text-primary hover:bg-accent hover:text-primary" onClick={() => openPlanoModal({ mode: 'create', eixoId })}>
+              <Plus className="size-3" /> Novo plano
+            </Button>
+          )}
         </div>
 
         {planos.length === 0 && (
           <div className="mt-5 flex items-center justify-between gap-4 rounded-xl bg-card p-6">
             <div className="text-sm text-muted-foreground">Este eixo ainda não tem planos de entrega.</div>
-            <Button variant="dashed" className="cursor-pointer border-primary text-primary hover:bg-accent hover:text-primary" onClick={() => openPlanoModal({ mode: 'create', eixoId })}>
-              + Novo plano
-            </Button>
+            {podeCriar && (
+              <Button variant="dashed" className="cursor-pointer border-primary text-primary hover:bg-accent hover:text-primary" onClick={() => openPlanoModal({ mode: 'create', eixoId })}>
+                + Novo plano
+              </Button>
+            )}
           </div>
         )}
       </div>
