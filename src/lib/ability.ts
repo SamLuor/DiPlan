@@ -28,7 +28,7 @@ export type Acao =
 /** Só os campos usados nas condições CASL — o objeto real pode ter mais campos. */
 type EixoSubject = { id?: string } & ForcedSubject<'Eixo'>
 type PlanoSubject = { id?: string; eixoId?: string } & ForcedSubject<'Plano'>
-type EntregaSubject = { eixoId?: string; responsavelUserId?: string | null; situacao?: SituacaoEntrega } & ForcedSubject<'Entrega'>
+type EntregaSubject = { id?: string; eixoId?: string; responsavelUserId?: string | null; situacao?: SituacaoEntrega } & ForcedSubject<'Entrega'>
 
 type AppAbilities =
   | AbilityTuple<Acao, 'all'>
@@ -51,6 +51,13 @@ export interface AbilityContext {
   eixosChefiados: string[]
   /** Só relevante pra Operacional: planos que têm ao menos uma entrega da qual ele é responsável. */
   planosComEntregaPropria: string[]
+  /**
+   * Entregas/planos onde o usuário tem uma delegação (Solicitação) recebida — dá leitura mesmo
+   * fora do escopo normal, mas sempre dentro do próprio eixo (quem delega já é obrigado a
+   * escolher alguém do mesmo eixo). Ver `domain-info/spec-task-delegar-entrega.md`.
+   */
+  entregasComDelegacao: string[]
+  planosComDelegacao: string[]
 }
 
 /**
@@ -77,6 +84,8 @@ export function defineAbilityFor(usuario: AbilityUser, ctx: AbilityContext): App
     )
     can('ver-unidade', 'Relatorio')
     can('ver-individual', 'Relatorio')
+    can('read', 'Plano', { id: { $in: ctx.planosComDelegacao } })
+    can('read', 'Entrega', { id: { $in: ctx.entregasComDelegacao } })
     return build()
   }
 
@@ -99,5 +108,7 @@ export function defineAbilityFor(usuario: AbilityUser, ctx: AbilityContext): App
   cannot('aprovar', 'Entrega')
   cannot(['create', 'update', 'delete'], 'Plano')
   can('ver-individual', 'Relatorio')
+  can('read', 'Plano', { id: { $in: ctx.planosComDelegacao } })
+  can('read', 'Entrega', { id: { $in: ctx.entregasComDelegacao } })
   return build()
 }

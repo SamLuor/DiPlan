@@ -85,9 +85,9 @@ Lógica (`isOverdue()`):
 - Bucket privado; acesso só via IAM role da instância (produção) — nada de chave/segredo fixo em env. Ver `domain-info/deploy-aws-ec2.md`
 - **Sem versionamento** — o documento (Seção 10) exige manter versões anteriores ao substituir um arquivo. Não implementado (Backlog, item 8)
 
-### 3.9. Colaboração (implementado apenas parcialmente / de forma incorreta)
-- Existe hoje um campo **"Observadores"**: tags simples de nome, sem tipo de solicitação, sem prazo de retorno, sem notificação de resposta
-- Isso **não corresponde** ao que a Seção 9 do documento pede (tipos de solicitação, prazo para retorno, resposta/manifestação, indicação de quem já respondeu). É um placeholder informal que precisa ser substituído (ver Backlog, item 3)
+### 3.9. Colaboração / delegação (Seção 9 — implementado via "Solicitações", ver Seção 3.15 abaixo)
+- Solicitação = tipo (revisão/manifestação/complementação/análise/elaboração/aprovação) + descrição + prazo + prioridade + responsável(is), sempre do mesmo eixo da entrega — cobre a Seção 9.1/9.2 do documento
+- Desde a feature de delegação (Seção 3.15), cada vínculo responsável↔solicitação se comporta como uma delegação de verdade: status próprio (aguardando/em andamento/concluído), acesso concedido à entrega/plano mesmo fora do escopo normal, e trava de escrita pós-conclusão — ver `domain-info/spec-task-delegar-entrega.md`
 
 ### 3.10. Calendário (Seção 14 — implementado, versão adaptada ao escopo sem RBAC)
 - Visualizações: diária, semanal, mensal, período personalizado
@@ -136,6 +136,19 @@ Spec original em `domain-info/spec-task-aprovacao-entrega.md`. Resolve de vez a 
 - Kanban de entregas ganhou uma 4ª coluna "Aguardando aprovação" (só leitura, sem drag) — mais a tela dedicada **Solicitações de Aprovação** (`/app/aprovacoes`, Chefia/Diretoria) agregando pendências de todos os planos, com contador no menu lateral.
 - Fora de escopo (igual à spec original): notificação pra chefia/diretoria quando uma entrega entra em aprovação.
 
+### 3.15. Delegação de entrega com acesso concedido (branch `feature/delegar-entrega`, a partir de `develop`)
+
+Spec original em `domain-info/spec-task-delegar-entrega.md`. Não é um tipo novo de Solicitação — é o sistema de Solicitações existente ganhando comportamento de delegação de verdade, mantendo a Seção 20 Regra 5 (responsável principal nunca muda):
+
+- `solicitacao_responsaveis` trocou o booleano `respondeu`/`respondido_em` por um status de 3 estados (`aguardando`/`andamento`/`concluido`) por responsável — cada linha é uma delegação independente, com `iniciado_em`/`concluido_em`.
+- Criar uma solicitação (delegar) exige que todos os responsáveis sejam do mesmo eixo da entrega e não sejam Diretoria (colaboração fica dentro da equipe); restrito a quem já pode `delegar` no CASL — responsável principal, chefia do eixo ou diretoria (não é possível sub-delegar).
+- Quem tem uma delegação (em qualquer status) ganha leitura da entrega e do plano relacionados mesmo fora do escopo normal de visibilidade do perfil (`AbilityContext.entregasComDelegacao`/`planosComDelegacao`, resolvido em `actor.ts`) — mas só enxerga a própria delegação na lista de Solicitações, nunca as de outras pessoas (`getEntregaFn` filtra pra quem não tem acesso normal).
+- O próprio delegado inicia (`iniciarDelegacaoFn`) e conclui (`concluirDelegacaoFn`) a própria delegação — gera registro automático na timeline em cada transição, igual ao padrão de iniciar/concluir entrega.
+- Trava de escrita: assim que a própria delegação de alguém está `concluido`, essa pessoa específica não pode mais adicionar nota/anexo na entrega — só se aplica a quem só tem acesso via delegação (responsável principal/chefia/diretoria nunca são afetados, e outras pessoas com delegação ativa na mesma entrega também não).
+- Reabertura de delegação concluída (`reabrirDelegacaoFn`) restrita ao responsável principal da entrega, com justificativa obrigatória — volta a delegação pra `andamento` e destrava a escrita do delegado.
+- Entrega não pode ser concluída (`moveEntregaToStatus`/`performAcao`) enquanto houver alguma delegação não concluída.
+- Fora de escopo (igual à spec original): notificação de nova delegação, painel/calendário dedicado ao colaborador, cadeia de sub-delegação.
+
 ---
 
 ## 4. Backlog priorizado (próximos passos)
@@ -144,7 +157,7 @@ Ordenado por impacto na integridade dos dados e na experiência de uso diário:
 
 1. ✅ **[Correção crítica] Soft delete na timeline** — implementado no front (`excluido: true`) e agora também no banco (coluna `notas.excluido`, ver Seção 3.12).
 2. ✅ **[Correção] Responsável como vínculo real de usuário** — implementado no front (`responsavelUserId`) e no banco (FK `entregas.responsavel_user_id`).
-3. ✅ **[Evolução] Colaboração/delegação/revisão real** — implementado no front ("Solicitações de colaboração": tipo, responsáveis múltiplos, prazo, prioridade, status pendente/respondida, registro automático na timeline) e no banco (`solicitacoes` + `solicitacao_responsaveis`).
+3. ✅ **[Evolução] Colaboração/delegação/revisão real** — implementado no front ("Solicitações de colaboração": tipo, responsáveis múltiplos, prazo, prioridade, status próprio aguardando/andamento/concluído, registro automático na timeline) e no banco (`solicitacoes` + `solicitacao_responsaveis`). Delegação de verdade (acesso concedido, trava pós-conclusão, reabertura com justificativa) implementada na branch `feature/delegar-entrega` — ver Seção 3.15 e `domain-info/spec-task-delegar-entrega.md`.
 4. **[Governança] Justificativa obrigatória para alteração de prazo** — registrar prazo anterior, novo prazo, autor, data/hora, justificativa (Regra 7, Seção 20; Seção 18).
 5. **[Governança] Justificativa obrigatória para exclusão de entrega** — restrita a chefia/Diretoria, com motivo registrado (Regra 9, Seção 20). Depende de RBAC mínimo (ao menos identificar "chefia do eixo", que já existe).
 6. **Tipos de entrega, competências e diretrizes** — cadastro estruturado (Seção 13), substituindo texto livre atual no campo tipo.

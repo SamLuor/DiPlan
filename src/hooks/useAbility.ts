@@ -21,6 +21,6 @@ export function useAbility(): AppAbility {
       currentUser.perfil === 'operacional'
         ? [...new Set(entregas.filter((e) => e.responsavelUserId === currentUser.id).map((e) => e.planoId))]
         : []
-    return defineAbilityFor(currentUser, { eixosChefiados, planosComEntregaPropria })
+    return defineAbilityFor(currentUser, { eixosChefiados, planosComEntregaPropria, entregasComDelegacao: [], planosComDelegacao: [] })
   }, [currentUser, eixos, entregas])
 }

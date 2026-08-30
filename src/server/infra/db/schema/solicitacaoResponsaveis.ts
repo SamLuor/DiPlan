@@ -1,4 +1,5 @@
-import { boolean, pgTable, primaryKey, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { pgTable, primaryKey, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { delegacaoStatusEnum } from './enums'
 import { solicitacoes } from './solicitacoes'
 import { usuarios } from './usuarios'
 
@@ -11,8 +12,9 @@ export const solicitacaoResponsaveis = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => usuarios.id, { onDelete: 'cascade' }),
-    respondeu: boolean('respondeu').notNull().default(false),
-    respondidoEm: timestamp('respondido_em', { withTimezone: true }),
+    status: delegacaoStatusEnum('status').notNull().default('aguardando'),
+    iniciadoEm: timestamp('iniciado_em', { withTimezone: true }),
+    concluidoEm: timestamp('concluido_em', { withTimezone: true }),
   },
   (table) => [primaryKey({ columns: [table.solicitacaoId, table.userId] })],
 )

@@ -44,10 +44,13 @@ export interface Nota {
   dataHora: Date
 }
 
+export type DelegacaoStatus = 'aguardando' | 'andamento' | 'concluido'
+
 export interface SolicitacaoResposta {
   userId: string
-  respondeu: boolean
-  respondidoEm: Date | null
+  status: DelegacaoStatus
+  iniciadoEm: Date | null
+  concluidoEm: Date | null
 }
 
 export interface Solicitacao {
@@ -113,5 +116,10 @@ export interface EntregaRepository {
   findAnexoIdByNota(notaId: string): Promise<string | null>
 
   addSolicitacao(entregaId: string, data: NovaSolicitacaoInput): Promise<Solicitacao>
-  responderSolicitacao(solicitacaoId: string, userId: string): Promise<void>
+  findSolicitacaoById(solicitacaoId: string): Promise<(Solicitacao & { entregaId: string }) | null>
+  iniciarDelegacao(solicitacaoId: string, userId: string): Promise<void>
+  concluirDelegacao(solicitacaoId: string, userId: string): Promise<void>
+  reabrirDelegacao(solicitacaoId: string, userId: string): Promise<void>
+  /** Entregas onde o usuário tem qualquer delegação (em qualquer status) — base do acesso concedido pela delegação, ver `domain-info/spec-task-delegar-entrega.md`. */
+  findEntregaIdsComDelegacao(userId: string): Promise<string[]>
 }

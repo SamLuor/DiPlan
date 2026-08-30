@@ -171,7 +171,7 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
           <PrioritySelector value={entrega.prioridade} onChange={(p) => updateMutation.mutate({ prioridade: p })} disabled={!podeEditar} />
         </div>
 
-        <SolicitacoesList entrega={entrega} />
+        <SolicitacoesList entrega={entrega} eixoId={eixoDoPlano?.id} />
 
         <div className="flex items-center justify-between border-t pt-4">
           <Badge className={SITUACAO_BADGE[entrega.situacao]}>{SITUACAO_LABEL[entrega.situacao]}</Badge>

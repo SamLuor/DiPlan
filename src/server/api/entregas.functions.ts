@@ -6,16 +6,18 @@ import {
   addNota,
   addSolicitacao,
   aprovarEntrega,
+  concluirDelegacao,
   confirmAnexoUpload,
   createAnexoUploadUrl,
   createEntrega,
   deleteNota,
   editNota,
   getAnexoDownloadUrl,
+  iniciarDelegacao,
   moveEntregaToStatus,
   performAcao,
+  reabrirDelegacao,
   removeAnexo,
-  responderSolicitacao,
   updateEntrega,
   type EntregaRepos,
 } from '~/server/core/entregas/entrega.usecases'
@@ -59,12 +61,22 @@ export const listEntregasFn = createServerFn({ method: 'GET' })
 export const getEntregaFn = createServerFn({ method: 'GET' })
   .validator(z.object({ id: z.string().min(1) }))
   .handler(async ({ data }) => {
-    const { ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
+    const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
     const entrega = await entregaRepository.findById(data.id)
     if (!entrega) return null
     const plano = await planoRepository.findById(entrega.planoId)
     // 404-like (null) em vez de 403 — não revela se a entrega existe pra quem não tem acesso.
     if (ability.cannot('read', subject('Entrega', { ...entrega, eixoId: plano?.eixoId }))) return null
+
+    // Quem só chegou aqui via delegação (não é responsável/chefia/diretoria) só enxerga a
+    // própria delegação na lista de Solicitações — nunca as de outras pessoas (spec-task-delegar-entrega.md).
+    const eixo = plano ? await eixoRepository.findById(plano.eixoId) : null
+    const acessoNormal = actor.perfil === 'diretoria' || entrega.responsavelUserId === actor.id || eixo?.chefiaUserId === actor.id
+    if (!acessoNormal) {
+      entrega.solicitacoes = entrega.solicitacoes
+        .map((s) => ({ ...s, responsaveis: s.responsaveis.filter((r) => r.userId === actor.id) }))
+        .filter((s) => s.responsaveis.length > 0)
+    }
     return entrega
   })
 
@@ -145,7 +157,11 @@ export const addNotaFn = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ data }) => {
-    const actor = await requireActor()
+    const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
+    const entrega = await entregaRepository.findById(data.entregaId)
+    if (!entrega) throw new Error('Entrega não encontrada.')
+    const plano = await planoRepository.findById(entrega.planoId)
+    if (ability.cannot('read', subject('Entrega', { ...entrega, eixoId: plano?.eixoId }))) throw new Error('Sem permissão para acessar esta entrega.')
     const { entregaId, ...input } = data
     return addNota(repos, entregaId, input, actor)
   })
@@ -172,20 +188,29 @@ const anexoMetaSchema = z.object({
   tamanho: z.number().int().positive(),
 })
 
+async function requireEntregaAcessivel(entregaId: string) {
+  const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
+  const entrega = await entregaRepository.findById(entregaId)
+  if (!entrega) throw new Error('Entrega não encontrada.')
+  const plano = await planoRepository.findById(entrega.planoId)
+  if (ability.cannot('read', subject('Entrega', { ...entrega, eixoId: plano?.eixoId }))) throw new Error('Sem permissão para acessar esta entrega.')
+  return actor
+}
+
 export const createAnexoUploadUrlFn = createServerFn({ method: 'POST' })
   .validator(z.object({ entregaId: z.string().min(1) }).and(anexoMetaSchema))
   .handler(async ({ data }) => {
-    await requireActor()
+    const actor = await requireEntregaAcessivel(data.entregaId)
     const { entregaId, ...meta } = data
-    return createAnexoUploadUrl(repos, entregaId, meta)
+    return createAnexoUploadUrl(repos, entregaId, meta, actor)
   })
 
 export const confirmAnexoUploadFn = createServerFn({ method: 'POST' })
   .validator(z.object({ entregaId: z.string().min(1), key: z.string().min(1), notaId: z.string().optional() }).and(anexoMetaSchema))
   .handler(async ({ data }) => {
-    await requireActor()
+    const actor = await requireEntregaAcessivel(data.entregaId)
     const { entregaId, ...input } = data
-    return confirmAnexoUpload(repos, entregaId, input)
+    return confirmAnexoUpload(repos, entregaId, input, actor)
   })
 
 export const getAnexoDownloadUrlFn = createServerFn({ method: 'POST' })
@@ -214,16 +239,32 @@ export const addSolicitacaoFn = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ data }) => {
-    const actor = await requireActor()
+    const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
+    const entrega = await entregaRepository.findById(data.entregaId)
+    if (!entrega) throw new Error('Entrega não encontrada.')
+    const plano = await planoRepository.findById(entrega.planoId)
+    if (ability.cannot('delegar', subject('Entrega', { ...entrega, eixoId: plano?.eixoId }))) throw new Error('Sem permissão para delegar nesta entrega.')
     const { entregaId, ...input } = data
     return addSolicitacao(repos, entregaId, input, actor)
   })
 
-export const responderSolicitacaoFn = createServerFn({ method: 'POST' })
-  .validator(z.object({ entregaId: z.string().min(1), solicitacaoId: z.string().min(1) }))
+export const iniciarDelegacaoFn = createServerFn({ method: 'POST' })
+  .validator(z.object({ solicitacaoId: z.string().min(1) }))
   .handler(async ({ data }) => {
     const actor = await requireActor()
-    const entrega = await entregaRepository.findById(data.entregaId)
-    if (!entrega) throw new Error('Entrega não encontrada.')
-    await responderSolicitacao(repos, entrega, data.solicitacaoId, actor)
+    return iniciarDelegacao(repos, data.solicitacaoId, actor)
+  })
+
+export const concluirDelegacaoFn = createServerFn({ method: 'POST' })
+  .validator(z.object({ solicitacaoId: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const actor = await requireActor()
+    return concluirDelegacao(repos, data.solicitacaoId, actor)
+  })
+
+export const reabrirDelegacaoFn = createServerFn({ method: 'POST' })
+  .validator(z.object({ solicitacaoId: z.string().min(1), responsavelId: z.string().min(1), justificativa: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const actor = await requireActor()
+    return reabrirDelegacao(repos, data.solicitacaoId, data.responsavelId, data.justificativa, actor)
   })

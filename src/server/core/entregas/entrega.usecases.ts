@@ -69,12 +69,21 @@ async function addRegistroSistema(repos: EntregaRepos, entregaId: string, texto:
   await repos.entregas.addNota(entregaId, { texto, autor: 'Sistema', tipo: 'sistema' })
 }
 
+/** Seção 20 Regra 20 estendida por delegação (spec-task-delegar-entrega.md): não conclui com pendência de terceiros. */
+async function garantirDelegacoesConcluidas(repos: EntregaRepos, entregaId: string) {
+  const entrega = await repos.entregas.findById(entregaId)
+  if (!entrega) return
+  const pendente = entrega.solicitacoes.some((s) => s.responsaveis.some((r) => r.status !== 'concluido'))
+  if (pendente) throw new Error('Existem delegações desta entrega ainda não concluídas.')
+}
+
 export async function moveEntregaToStatus(repos: EntregaRepos, id: string, status: SituacaoEntrega, actor: Actor): Promise<Entrega> {
   const entregas = await repos.entregas.findAll()
   const entrega = entregas.find((e) => e.id === id)
   if (!entrega) throw new Error('Entrega não encontrada.')
   if (entrega.situacao === 'aguardando aprovação') throw new Error('Entrega aguardando aprovação — precisa ser aprovada antes de mudar de status.')
   if (entrega.situacao === status) return entrega
+  if (status === 'concluida') await garantirDelegacoesConcluidas(repos, id)
   const updated = await repos.entregas.updateSituacao(id, status)
   if (!updated) throw new Error('Entrega não encontrada.')
   if (status === 'andamento') await promoteToExecucaoIfNeeded(repos.planos, entrega.planoId)
@@ -101,6 +110,7 @@ export async function performAcao(repos: EntregaRepos, id: string, actor: Actor)
     mensagem = `Entrega reaberta por ${actor.email}.`
   }
 
+  if (proximo === 'concluida') await garantirDelegacoesConcluidas(repos, id)
   const updated = await repos.entregas.updateSituacao(id, proximo)
   if (!updated) throw new Error('Entrega não encontrada.')
   if (proximo === 'andamento') await promoteToExecucaoIfNeeded(repos.planos, entrega.planoId)
@@ -124,9 +134,32 @@ export async function aprovarEntrega(repos: EntregaRepos, id: string, actor: Act
   return updated
 }
 
+/**
+ * Trava de escrita pós-delegação (spec-task-delegar-entrega.md): quem tem acesso normal à
+ * entrega (responsável principal, chefia do eixo, diretoria) nunca é afetado. Quem só chegou
+ * aqui via uma delegação recebida perde a escrita assim que TODAS as suas próprias delegações
+ * nessa entrega estiverem concluídas — outras pessoas delegadas na mesma entrega não são afetadas.
+ */
+async function garantirPodeEscreverNaEntrega(repos: EntregaRepos, entrega: EntregaDetalhada, actor: Actor) {
+  if (actor.perfil === 'diretoria') return
+  if (entrega.responsavelUserId === actor.id) return
+  const plano = await repos.planos.findById(entrega.planoId)
+  const eixo = plano ? await repos.eixos.findById(plano.eixoId) : null
+  if (eixo?.chefiaUserId === actor.id) return
+  const minhasDelegacoes = entrega.solicitacoes.flatMap((s) => s.responsaveis.filter((r) => r.userId === actor.id))
+  if (minhasDelegacoes.length === 0) return
+  const temDelegacaoAberta = minhasDelegacoes.some((r) => r.status !== 'concluido')
+  if (!temDelegacaoAberta) {
+    throw new Error('Sua delegação nesta entrega já foi concluída — você não pode mais adicionar registros.')
+  }
+}
+
 export async function addNota(repos: EntregaRepos, entregaId: string, input: { texto: string; proximoPasso?: string }, actor: Actor) {
   const texto = input.texto.trim()
   if (!texto) throw new Error('Texto da nota é obrigatório.')
+  const entrega = await repos.entregas.findById(entregaId)
+  if (!entrega) throw new Error('Entrega não encontrada.')
+  await garantirPodeEscreverNaEntrega(repos, entrega, actor)
   const usuario = await repos.usuarios.findById(actor.id)
   return repos.entregas.addNota(entregaId, {
     texto,
@@ -174,11 +207,12 @@ export interface NovoAnexoMeta {
   tamanho: number
 }
 
-export async function createAnexoUploadUrl(repos: EntregaRepos, entregaId: string, meta: NovoAnexoMeta) {
+export async function createAnexoUploadUrl(repos: EntregaRepos, entregaId: string, meta: NovoAnexoMeta, actor: Actor) {
   if (!meta.nome.trim()) throw new Error('Nome do arquivo é obrigatório.')
   if (meta.tamanho <= 0 || meta.tamanho > MAX_ANEXO_BYTES) throw new Error('Arquivo excede o tamanho máximo permitido (20MB).')
   const entrega = await repos.entregas.findById(entregaId)
   if (!entrega) throw new Error('Entrega não encontrada.')
+  await garantirPodeEscreverNaEntrega(repos, entrega, actor)
 
   const key = buildAnexoKey(entregaId)
   const uploadUrl = await createUploadUrl(key, meta.contentType)
@@ -190,7 +224,10 @@ export async function createAnexoUploadUrl(repos: EntregaRepos, entregaId: strin
  * ele é removido (S3 + banco) antes de confirmar o novo, sem depender do front
  * pra fazer essa troca em duas chamadas separadas.
  */
-export async function confirmAnexoUpload(repos: EntregaRepos, entregaId: string, data: { key: string; notaId?: string | null } & NovoAnexoMeta) {
+export async function confirmAnexoUpload(repos: EntregaRepos, entregaId: string, data: { key: string; notaId?: string | null } & NovoAnexoMeta, actor: Actor) {
+  const entrega = await repos.entregas.findById(entregaId)
+  if (!entrega) throw new Error('Entrega não encontrada.')
+  await garantirPodeEscreverNaEntrega(repos, entrega, actor)
   if (data.notaId) {
     const anteriorId = await repos.entregas.findAnexoIdByNota(data.notaId)
     if (anteriorId) await removeAnexo(repos, anteriorId)
@@ -210,13 +247,25 @@ export async function removeAnexo(repos: EntregaRepos, anexoId: string) {
   await repos.entregas.removeAnexo(anexoId)
 }
 
+/**
+ * Delegar (criar solicitação) só é permitido dentro do próprio eixo da entrega — a colaboração
+ * fica sempre dentro da equipe (spec-task-delegar-entrega.md). Quem pode delegar (responsável
+ * principal/chefia/diretoria) já é resolvido na API layer via `ability.can('delegar', ...)`.
+ */
 export async function addSolicitacao(repos: EntregaRepos, entregaId: string, input: NovaSolicitacaoInput, actor: Actor) {
   const descricao = input.descricao.trim()
   if (!descricao || input.responsavelIds.length === 0) {
     throw new Error('Descrição e ao menos um responsável são obrigatórios.')
   }
-  const solicitacao = await repos.entregas.addSolicitacao(entregaId, { ...input, descricao })
+  const entrega = await repos.entregas.findById(entregaId)
+  if (!entrega) throw new Error('Entrega não encontrada.')
+  const plano = await repos.planos.findById(entrega.planoId)
+  if (!plano) throw new Error('Plano não encontrado.')
   const responsaveis = await Promise.all(input.responsavelIds.map((id) => repos.usuarios.findById(id)))
+  if (responsaveis.some((u) => !u || u.perfil === 'diretoria' || u.eixoId !== plano.eixoId)) {
+    throw new Error('Só é possível delegar para usuários do mesmo eixo da entrega.')
+  }
+  const solicitacao = await repos.entregas.addSolicitacao(entregaId, { ...input, descricao })
   const nomes = responsaveis
     .filter((u): u is NonNullable<typeof u> => !!u)
     .map((u) => u.nome)
@@ -225,14 +274,57 @@ export async function addSolicitacao(repos: EntregaRepos, entregaId: string, inp
   return solicitacao
 }
 
-export async function responderSolicitacao(repos: EntregaRepos, entrega: EntregaDetalhada, solicitacaoId: string, actor: Actor) {
-  const solicitacao = entrega.solicitacoes.find((s) => s.id === solicitacaoId)
+export async function iniciarDelegacao(repos: EntregaRepos, solicitacaoId: string, actor: Actor) {
+  const solicitacao = await repos.entregas.findSolicitacaoById(solicitacaoId)
   if (!solicitacao) throw new Error('Solicitação não encontrada.')
-  await repos.entregas.responderSolicitacao(solicitacaoId, actor.id)
+  const minha = solicitacao.responsaveis.find((r) => r.userId === actor.id)
+  if (!minha) throw new Error('Você não é responsável por esta delegação.')
+  if (minha.status !== 'aguardando') throw new Error('Esta delegação já foi iniciada.')
+  await repos.entregas.iniciarDelegacao(solicitacaoId, actor.id)
   const usuario = await repos.usuarios.findById(actor.id)
   await addRegistroSistema(
     repos,
-    entrega.id,
-    `Solicitação de ${solicitacaoTipoLabel(solicitacao.tipo).toLowerCase()} respondida por ${usuario ? usuario.nome : actor.email}.`,
+    solicitacao.entregaId,
+    `Delegação de ${solicitacaoTipoLabel(solicitacao.tipo).toLowerCase()} iniciada por ${usuario ? usuario.nome : actor.email}.`,
+  )
+}
+
+export async function concluirDelegacao(repos: EntregaRepos, solicitacaoId: string, actor: Actor) {
+  const solicitacao = await repos.entregas.findSolicitacaoById(solicitacaoId)
+  if (!solicitacao) throw new Error('Solicitação não encontrada.')
+  const minha = solicitacao.responsaveis.find((r) => r.userId === actor.id)
+  if (!minha) throw new Error('Você não é responsável por esta delegação.')
+  if (minha.status !== 'andamento') throw new Error('Esta delegação precisa estar em andamento para ser concluída.')
+  await repos.entregas.concluirDelegacao(solicitacaoId, actor.id)
+  const usuario = await repos.usuarios.findById(actor.id)
+  await addRegistroSistema(
+    repos,
+    solicitacao.entregaId,
+    `Delegação de ${solicitacaoTipoLabel(solicitacao.tipo).toLowerCase()} concluída por ${usuario ? usuario.nome : actor.email}.`,
+  )
+}
+
+/**
+ * Reabertura restrita ao responsável principal da entrega (não chefia/diretoria, não o próprio
+ * delegado) e com justificativa obrigatória — igual à reabertura de entrega (Seção 11), mas
+ * aqui a justificativa é exigida de fato (spec-task-delegar-entrega.md).
+ */
+export async function reabrirDelegacao(repos: EntregaRepos, solicitacaoId: string, responsavelId: string, justificativa: string, actor: Actor) {
+  const texto = justificativa.trim()
+  if (!texto) throw new Error('Justificativa é obrigatória para reabrir uma delegação.')
+  const solicitacao = await repos.entregas.findSolicitacaoById(solicitacaoId)
+  if (!solicitacao) throw new Error('Solicitação não encontrada.')
+  const delegacao = solicitacao.responsaveis.find((r) => r.userId === responsavelId)
+  if (!delegacao) throw new Error('Delegação não encontrada.')
+  if (delegacao.status !== 'concluido') throw new Error('Só é possível reabrir uma delegação concluída.')
+  const entrega = await repos.entregas.findById(solicitacao.entregaId)
+  if (!entrega) throw new Error('Entrega não encontrada.')
+  if (entrega.responsavelUserId !== actor.id) throw new Error('Somente o responsável principal da entrega pode reabrir uma delegação.')
+  await repos.entregas.reabrirDelegacao(solicitacaoId, responsavelId)
+  const [delegado, responsavel] = await Promise.all([repos.usuarios.findById(responsavelId), repos.usuarios.findById(actor.id)])
+  await addRegistroSistema(
+    repos,
+    solicitacao.entregaId,
+    `Delegação de ${solicitacaoTipoLabel(solicitacao.tipo).toLowerCase()} de ${delegado ? delegado.nome : responsavelId} reaberta por ${responsavel ? responsavel.nome : actor.email}: ${texto}`,
   )
 }

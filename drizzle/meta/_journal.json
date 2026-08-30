@@ -57,6 +57,13 @@
       "when": 1788105068657,
       "tag": "0007_lethal_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788112356655,
+      "tag": "0008_thin_roxanne_simpson",
+      "breakpoints": true
     }
   ]
 }

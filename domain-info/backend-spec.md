@@ -34,7 +34,7 @@ Ver `src/server/infra/db/schema/*.ts` para a definição completa (Drizzle). Res
 | `anexos` | entrega_id, nome, key (objeto no S3), content_type, tamanho | → entregas (cascade) |
 | `notas` | entrega_id, texto, autor (texto livre), tipo, proximo_passo, anexo_nome, editado, **excluido** (soft delete), data_hora | → entregas (cascade) |
 | `solicitacoes` | entrega_id, tipo, descricao, prazo, prioridade, criado_em | → entregas (cascade) |
-| `solicitacao_responsaveis` | solicitacao_id, user_id, respondeu, respondido_em (PK composta) | → solicitacoes, usuarios (cascade) |
+| `solicitacao_responsaveis` | solicitacao_id, user_id, **status** (aguardando/andamento/concluido — delegação, ver `spec-task-delegar-entrega.md`), iniciado_em, concluido_em (PK composta) | → solicitacoes, usuarios (cascade) |
 | `sessions` | id (token), user_id, expires_at | → usuarios (cascade) |
 | `password_setup_tokens` | token (PK, opaco), user_id, expires_at, used_at (nullable) | → usuarios (cascade) |
 
@@ -90,10 +90,12 @@ Divergências conhecidas (deliberadas, ver `domain-system.md`):
 | `confirmAnexoUploadFn` | `{ entregaId, key, nome, contentType, tamanho }` | chamado depois do PUT no S3 ter sucesso — só então grava a linha em `anexos` |
 | `getAnexoDownloadUrlFn` | `{ anexoId }` | URL pré-assinada de GET (5min), com `Content-Disposition` pro nome original |
 | `removeAnexoFn` | `{ anexoId }` | apaga o objeto no S3 e depois a linha no banco |
-| `addSolicitacaoFn` | `{ tipo, descricao, prazo, prioridade, responsavelIds }` | exige descrição + ao menos 1 responsável; gera registro automático |
-| `responderSolicitacaoFn` | `{ entregaId, solicitacaoId }` | marca a resposta do usuário autenticado; gera registro automático |
+| `addSolicitacaoFn` | `{ tipo, descricao, prazo, prioridade, responsavelIds }` | exige descrição + ao menos 1 responsável, todos do mesmo eixo da entrega (não-diretoria); restrito a quem já pode `delegar` (responsável principal/chefia/diretoria, ver `ability.ts`); gera registro automático — ver `spec-task-delegar-entrega.md` |
+| `iniciarDelegacaoFn` | `{ solicitacaoId }` | só o próprio delegado, delegação precisa estar `aguardando`; gera registro automático |
+| `concluirDelegacaoFn` | `{ solicitacaoId }` | só o próprio delegado, delegação precisa estar `andamento`; a partir daqui esse delegado perde a escrita (nota/anexo) na entrega, a menos que também tenha acesso normal (responsável/chefia/diretoria) |
+| `reabrirDelegacaoFn` | `{ solicitacaoId, responsavelId, justificativa }` | só o responsável principal da entrega, justificativa obrigatória, volta a delegação pra `andamento` e destrava a escrita do delegado |
 
-Todas as funções que precisam saber "quem está fazendo a ação" (`moveEntregaToStatusFn`, `performAcaoFn`, `deleteNotaFn`, `addSolicitacaoFn`, `responderSolicitacaoFn`) exigem sessão ativa (lançam erro "Não autenticado." se não houver).
+Todas as funções que precisam saber "quem está fazendo a ação" (`moveEntregaToStatusFn`, `performAcaoFn`, `deleteNotaFn`, `addSolicitacaoFn`, `iniciarDelegacaoFn`, `concluirDelegacaoFn`, `reabrirDelegacaoFn`) exigem sessão ativa (lançam erro "Não autenticado." se não houver).
 
 ## Env vars relevantes ao e-mail
 

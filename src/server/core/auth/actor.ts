@@ -32,12 +32,14 @@ export async function requireActorWithAbility(
   const eixos = await eixoRepo.findAll()
   const eixosChefiados = eixos.filter((e) => e.chefiaUserId === usuario.id).map((e) => e.id)
 
-  let planosComEntregaPropria: string[] = []
-  if (usuario.perfil === 'operacional') {
-    const entregas = await entregaRepo.findAll()
-    planosComEntregaPropria = [...new Set(entregas.filter((e) => e.responsavelUserId === usuario.id).map((e) => e.planoId))]
-  }
+  const entregas = await entregaRepo.findAll()
+  const planosComEntregaPropria =
+    usuario.perfil === 'operacional' ? [...new Set(entregas.filter((e) => e.responsavelUserId === usuario.id).map((e) => e.planoId))] : []
 
-  const ability = defineAbilityFor(usuario, { eixosChefiados, planosComEntregaPropria })
+  const entregasComDelegacao = await entregaRepo.findEntregaIdsComDelegacao(usuario.id)
+  const planoIdPorEntrega = new Map(entregas.map((e) => [e.id, e.planoId]))
+  const planosComDelegacao = [...new Set(entregasComDelegacao.map((id) => planoIdPorEntrega.get(id)).filter((id): id is string => !!id))]
+
+  const ability = defineAbilityFor(usuario, { eixosChefiados, planosComEntregaPropria, entregasComDelegacao, planosComDelegacao })
   return { actor: { id: usuario.id, email: usuario.email, perfil: usuario.perfil }, ability }
 }

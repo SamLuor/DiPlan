@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, ChevronDown } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog'
@@ -56,6 +57,7 @@ export function SolicitacaoModal() {
       setResponsavelPickerOpen(false)
       closeModal()
     },
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Erro ao criar solicitação.'),
   })
 
   function toggleResponsavel(id: string) {

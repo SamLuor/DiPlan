@@ -14,3 +14,4 @@ export const solicitacaoTipoEnum = pgEnum('solicitacao_tipo', [
   'elaboracao',
   'aprovacao',
 ])
+export const delegacaoStatusEnum = pgEnum('delegacao_status', ['aguardando', 'andamento', 'concluido'])

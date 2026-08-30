@@ -45,7 +45,7 @@ async function loadSolicitacoes(entregaId: string): Promise<Solicitacao[]> {
     ...s,
     responsaveis: respostas
       .filter((r) => r.solicitacaoId === s.id)
-      .map((r) => ({ userId: r.userId, respondeu: r.respondeu, respondidoEm: r.respondidoEm })),
+      .map((r) => ({ userId: r.userId, status: r.status, iniciadoEm: r.iniciadoEm, concluidoEm: r.concluidoEm })),
   }))
 }
 
@@ -156,14 +156,47 @@ export const entregaRepository: EntregaRepository = {
     }
     return {
       ...sol!,
-      responsaveis: data.responsavelIds.map((userId) => ({ userId, respondeu: false, respondidoEm: null })),
+      responsaveis: data.responsavelIds.map((userId) => ({ userId, status: 'aguardando' as const, iniciadoEm: null, concluidoEm: null })),
     }
   },
 
-  async responderSolicitacao(solicitacaoId, userId) {
+  async findSolicitacaoById(solicitacaoId) {
+    const [sol] = await db.select().from(solicitacoes).where(eq(solicitacoes.id, solicitacaoId)).limit(1)
+    if (!sol) return null
+    const respostas = await db.select().from(solicitacaoResponsaveis).where(eq(solicitacaoResponsaveis.solicitacaoId, solicitacaoId))
+    return {
+      ...sol,
+      responsaveis: respostas.map((r) => ({ userId: r.userId, status: r.status, iniciadoEm: r.iniciadoEm, concluidoEm: r.concluidoEm })),
+    }
+  },
+
+  async iniciarDelegacao(solicitacaoId, userId) {
     await db
       .update(solicitacaoResponsaveis)
-      .set({ respondeu: true, respondidoEm: new Date() })
+      .set({ status: 'andamento', iniciadoEm: new Date() })
       .where(and(eq(solicitacaoResponsaveis.solicitacaoId, solicitacaoId), eq(solicitacaoResponsaveis.userId, userId)))
+  },
+
+  async concluirDelegacao(solicitacaoId, userId) {
+    await db
+      .update(solicitacaoResponsaveis)
+      .set({ status: 'concluido', concluidoEm: new Date() })
+      .where(and(eq(solicitacaoResponsaveis.solicitacaoId, solicitacaoId), eq(solicitacaoResponsaveis.userId, userId)))
+  },
+
+  async reabrirDelegacao(solicitacaoId, userId) {
+    await db
+      .update(solicitacaoResponsaveis)
+      .set({ status: 'andamento', concluidoEm: null })
+      .where(and(eq(solicitacaoResponsaveis.solicitacaoId, solicitacaoId), eq(solicitacaoResponsaveis.userId, userId)))
+  },
+
+  async findEntregaIdsComDelegacao(userId) {
+    const rows = await db
+      .select({ entregaId: solicitacoes.entregaId })
+      .from(solicitacaoResponsaveis)
+      .innerJoin(solicitacoes, eq(solicitacoes.id, solicitacaoResponsaveis.solicitacaoId))
+      .where(eq(solicitacaoResponsaveis.userId, userId))
+    return [...new Set(rows.map((r) => r.entregaId))]
   },
 }
