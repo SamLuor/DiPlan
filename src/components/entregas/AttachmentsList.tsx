@@ -9,10 +9,12 @@ const MAX_ANEXO_BYTES = 20 * 1024 * 1024
 
 function UploadProgressToast({ nome, progress }: { nome: string; progress: number }) {
   return (
-    <div className="flex w-full flex-col gap-1.5 py-0.5">
+    <div className="flex w-full flex-col py-0.5 min-w-[350px] min-h-[80px] justify-center gap-2 p-3 rounded-xl border border-green-600 bg-gray-50 overflow-hidden">
       <span className="truncate text-sm text-foreground">Enviando "{nome}"…</span>
-      <Progress value={progress} className="h-1.5" />
-      <span className="text-xs text-muted-foreground">{progress}%</span>
+      <span>
+        <Progress value={progress} className="h-1.5" />
+        <span className="text-xs text-muted-foreground">{progress}%</span>
+      </span>
     </div>
   )
 }
@@ -40,7 +42,7 @@ async function uploadFile(entregaId: string, file: File) {
   }
 
   const contentType = file.type || 'application/octet-stream'
-  toast.custom(() => <UploadProgressToast nome={file.name} progress={0} />, { id: toastId, duration: Infinity })
+  toast.custom(() => <UploadProgressToast nome={file.name} progress={0} />, { className: "overflow-hidden rounded-lg", id: toastId, duration: Infinity, position: "top-center", closeButton: false })
 
   try {
     const { key, uploadUrl } = await createAnexoUploadUrlFn({
@@ -48,13 +50,16 @@ async function uploadFile(entregaId: string, file: File) {
     })
 
     await putWithProgress(uploadUrl, file, contentType, (pct) => {
-      toast.custom(() => <UploadProgressToast nome={file.name} progress={pct} />, { id: toastId, duration: Infinity })
+      toast.custom(() => <UploadProgressToast nome={file.name} progress={pct} />, { id: toastId, duration: Infinity, position: "top-center", closeButton: false })
     })
 
     await confirmAnexoUploadFn({ data: { entregaId, key, nome: file.name, contentType, tamanho: file.size } })
-    toast.success(`"${file.name}" enviado.`, { id: toastId, duration: 3000 })
+    toast.success(`"${file.name}" enviado.`, { id: toastId, duration: 3000, closeButton: false })
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : `Falha ao enviar "${file.name}".`, { id: toastId, duration: 5000 })
+    setTimeout(() => {
+      toast.dismiss(toastId)
+      toast.error(error instanceof Error ? error.message : `Falha ao enviar "${file.name}".`, { duration: 2000, closeButton: false, position: "top-center" })
+    }, 1000)
     throw error
   }
 }
