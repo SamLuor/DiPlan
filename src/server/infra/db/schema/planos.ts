@@ -9,8 +9,8 @@ export const planos = pgTable('planos', {
     .notNull()
     .references(() => eixos.id, { onDelete: 'cascade' }),
   status: statusPlanoEnum('status').notNull().default('planejado'),
-  dataInicio: date('data_inicio'),
-  dataFim: date('data_fim'),
+  dataInicio: date('data_inicio').notNull(),
+  dataFim: date('data_fim').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })

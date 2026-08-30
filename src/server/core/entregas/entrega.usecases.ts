@@ -10,6 +10,7 @@ import type {
   SituacaoEntrega,
 } from '~/server/repository/entrega.repository'
 import { isChefiaAtual, situacaoLabel, solicitacaoTipoLabel } from '~/server/core/shared/rules'
+import { promoteToExecucaoIfNeeded } from '~/server/core/planos/plano.usecases'
 // Mesma exceção deliberada de auth.usecases.ts à regra "core não importa infra":
 // gerar URL pré-assinada / apagar objeto no S3 é primitiva de infra externa,
 // não regra de negócio — não compensa esconder isso atrás de uma interface aqui.
@@ -58,26 +59,14 @@ async function addRegistroSistema(repos: EntregaRepos, entregaId: string, texto:
   await repos.entregas.addNota(entregaId, { texto, autor: 'Sistema', tipo: 'sistema' })
 }
 
-/**
- * Plano "planejado" bloqueia início/execução das suas entregas — regra do
- * protótipo ainda **não validada com a cliente** contra o documento fonte
- * (ver `domain-info/domain-system.md`, Seção 6).
- */
-async function garantirPlanoNaoBloqueado(repos: EntregaRepos, entrega: Entrega) {
-  const plano = await repos.planos.findById(entrega.planoId)
-  if (plano && (plano.status ?? 'planejado') === 'planejado') {
-    throw new Error('Plano planejado — execução bloqueada.')
-  }
-}
-
 export async function moveEntregaToStatus(repos: EntregaRepos, id: string, status: SituacaoEntrega, actor: Actor): Promise<Entrega> {
   const entregas = await repos.entregas.findAll()
   const entrega = entregas.find((e) => e.id === id)
   if (!entrega) throw new Error('Entrega não encontrada.')
   if (entrega.situacao === status) return entrega
-  await garantirPlanoNaoBloqueado(repos, entrega)
   const updated = await repos.entregas.updateSituacao(id, status)
   if (!updated) throw new Error('Entrega não encontrada.')
+  if (status === 'andamento') await promoteToExecucaoIfNeeded(repos.planos, entrega.planoId)
   await addRegistroSistema(repos, id, `Status alterado para "${situacaoLabel(status)}" por ${actor.email}.`)
   return updated
 }
@@ -86,7 +75,6 @@ export async function performAcao(repos: EntregaRepos, id: string, actor: Actor)
   const entregas = await repos.entregas.findAll()
   const entrega = entregas.find((e) => e.id === id)
   if (!entrega) throw new Error('Entrega não encontrada.')
-  await garantirPlanoNaoBloqueado(repos, entrega)
 
   let proximo: SituacaoEntrega
   let mensagem: string
@@ -103,6 +91,7 @@ export async function performAcao(repos: EntregaRepos, id: string, actor: Actor)
 
   const updated = await repos.entregas.updateSituacao(id, proximo)
   if (!updated) throw new Error('Entrega não encontrada.')
+  if (proximo === 'andamento') await promoteToExecucaoIfNeeded(repos.planos, entrega.planoId)
   await addRegistroSistema(repos, id, mensagem)
   return updated
 }

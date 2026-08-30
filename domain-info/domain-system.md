@@ -53,10 +53,11 @@ Baseado na análise do protótipo em Claude Design (`Gestao_de_Entregas_dc.html`
 - Listagem em cards com avatar (iniciais), nome, e-mail, eixo, selo de chefia
 
 ### 3.4. Planos de entrega
-- CRUD: nome, eixo vinculado, data início, data fim
+- CRUD: nome, eixo vinculado, data início e data fim (**obrigatórias** desde a criação)
 - **Situações implementadas: Planejado / Execução / Concluído** (3 estados — o documento original pede 6: Rascunho, Aguardando início, Em execução, Encerrado, Arquivado, Cancelado — Seção 5.3. Redução deliberada, revisar se precisa expandir)
 - Barra de progresso em % (proporção de entregas concluídas)
-- Regra implementada (não estava no escopo original, validar com cliente): **plano em "Planejado" bloqueia a execução de suas entregas** — o botão "Iniciar" fica desabilitado até o plano mudar para "Execução"
+- **Status do plano é automático, não editável manualmente** (sem drag-and-drop no kanban, sem seletor no formulário): começa em "Planejado", passa a "Execução" quando uma entrega interna entra em andamento, e a "Concluído" quando a data final é atingida (checagem feita na leitura, sem job/cron — mesmo padrão do atraso automático de entregas, Seção 7.2)
+- **Removida** a regra anterior "plano em Planejado bloqueia execução de suas entregas" (era uma adição do protótipo, nunca validada com a cliente) — ela entrava em conflito direto com a nova regra automática acima: se toda entrega ficasse bloqueada enquanto o plano estivesse "Planejado", nenhuma entrega jamais poderia iniciar, e o plano nunca sairia de "Planejado" sozinho
 
 ### 3.5. Entregas — cadastro e kanban
 - Campos: título, descrição, data de início (opcional), prazo final, prioridade (baixa/normal/alta/urgente, com cor), responsável, anexos

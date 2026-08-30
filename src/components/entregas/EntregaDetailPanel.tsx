@@ -77,16 +77,13 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
 
   const plano = planos.find((p) => p.id === entrega.planoId)
   const eixoDoPlano = plano ? eixos.find((e) => e.id === plano.eixoId) : null
-  const planoBloqueiaExecucao = !!(plano && (plano.status || 'planejado') === 'planejado')
   const usuariosDoEixoDaEntrega = eixoDoPlano ? usuarios.filter((u) => u.eixoId === eixoDoPlano.id) : []
 
   let actionLabel: string | null = null
   let showReabrir = false
-  if (!planoBloqueiaExecucao) {
-    if (entrega.situacao === 'aguardando') actionLabel = 'Iniciar'
-    else if (entrega.situacao === 'andamento') actionLabel = 'Concluir'
-    else showReabrir = true
-  }
+  if (entrega.situacao === 'aguardando') actionLabel = 'Iniciar'
+  else if (entrega.situacao === 'andamento') actionLabel = 'Concluir'
+  else showReabrir = true
 
   const overdue = isOverdue(entrega)
   const dataMin = plano?.dataInicio ?? undefined
@@ -159,7 +156,6 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
 
         <div className="flex items-center justify-between border-t pt-4">
           <Badge className={SITUACAO_BADGE[entrega.situacao]}>{SITUACAO_LABEL[entrega.situacao]}</Badge>
-          {planoBloqueiaExecucao && <span className="text-[11.5px] text-muted-foreground">Plano planejado — execução bloqueada</span>}
           {actionLabel && (
             <Button type="button" variant="outline" className="border-primary text-primary hover:bg-accent hover:text-primary" onClick={() => acaoMutation.mutate()}>
               {actionLabel}

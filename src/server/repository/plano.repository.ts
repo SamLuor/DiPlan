@@ -5,16 +5,16 @@ export interface Plano {
   nome: string
   eixoId: string
   status: StatusPlano
-  dataInicio: string | null
-  dataFim: string | null
+  dataInicio: string
+  dataFim: string
 }
 
 export interface PlanoInput {
   nome: string
   eixoId: string
   status: StatusPlano
-  dataInicio: string | null
-  dataFim: string | null
+  dataInicio: string
+  dataFim: string
 }
 
 export interface PlanoRepository {

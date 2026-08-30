@@ -6,15 +6,10 @@ import { Button } from '~/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { Input } from '~/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
-import { ToggleGroup, ToggleGroupItem } from '~/components/ui/toggle-group'
 import { FormField } from '~/components/common/FormField'
-import { statusMeta } from '~/lib/domain'
-import type { StatusPlano } from '~/server/repository/plano.repository'
 import { eixosQueryOptions } from '~/server/api/eixos.functions'
 import { createPlanoFn, planosQueryOptions, updatePlanoFn } from '~/server/api/planos.functions'
 import { useUiStore } from '~/store/useUiStore'
-
-const STATUS_OPTIONS: StatusPlano[] = ['planejado', 'execucao', 'concluido']
 
 export function PlanoModal() {
   const modal = useUiStore((s) => s.planoModal)
@@ -31,12 +26,12 @@ export function PlanoModal() {
   const [eixoId, setEixoId] = useState(defaultEixoId)
   const [dataInicio, setDataInicio] = useState(editing?.dataInicio ?? '')
   const [dataFim, setDataFim] = useState(editing?.dataFim ?? '')
-  const [status, setStatus] = useState<StatusPlano>(editing?.status ?? 'planejado')
 
+  const datasFaltando = !dataInicio || !dataFim
   const datasInvalidas = !!(dataInicio && dataFim && dataFim < dataInicio)
 
   const mutation = useMutation({
-    mutationFn: (input: { id?: string; nome: string; eixoId: string; dataInicio: string | null; dataFim: string | null; status: StatusPlano }) =>
+    mutationFn: (input: { id?: string; nome: string; eixoId: string; dataInicio: string; dataFim: string }) =>
       input.id ? updatePlanoFn({ data: { id: input.id, ...input } }) : createPlanoFn({ data: input }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['planos'] })
@@ -53,15 +48,13 @@ export function PlanoModal() {
 
   function handleConfirm() {
     const trimmed = nome.trim()
-    if (!trimmed || !eixoId) return
-    if (datasInvalidas) return
+    if (!trimmed || !eixoId || datasFaltando || datasInvalidas) return
     mutation.mutate({
       id: modal?.mode === 'edit' ? modal.planoId : undefined,
       nome: trimmed,
       eixoId,
-      dataInicio: dataInicio || null,
-      dataFim: dataFim || null,
-      status,
+      dataInicio,
+      dataFim,
     })
   }
 
@@ -77,12 +70,12 @@ export function PlanoModal() {
         <div className="flex gap-3.5">
           <div className="flex-1">
             <FormField label="Início do plano">
-              <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+              <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} required />
             </FormField>
           </div>
           <div className="flex-1">
             <FormField label="Fim do plano">
-              <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+              <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} required />
             </FormField>
           </div>
         </div>
@@ -101,25 +94,20 @@ export function PlanoModal() {
             </SelectContent>
           </Select>
         </FormField>
-        <div>
-          <FormField label="Status do plano">
-            <ToggleGroup type="single" variant="outline" spacing={8} value={status} onValueChange={(v) => v && setStatus(v as StatusPlano)} className="flex-wrap">
-              {STATUS_OPTIONS.map((key) => (
-                <ToggleGroupItem key={key} value={key} className="data-[state=on]:bg-accent data-[state=on]:text-accent-foreground">
-                  {statusMeta(key).label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </FormField>
-          {status === 'planejado' && (
-            <div className="mt-1.5 text-[11.5px] text-muted-foreground">Em &quot;Planejado&quot;, as tarefas do plano podem ser criadas, mas não podem ser executadas.</div>
-          )}
+        <div className="text-[11.5px] text-muted-foreground">
+          O status do plano é automático: começa em "Planejado", passa a "Execução" quando uma entrega interna é iniciada, e a "Concluído" ao atingir a data final.
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={closeModal}>
             Cancelar
           </Button>
-          <Button type="button" variant="outline" className="border-primary text-primary hover:bg-accent hover:text-primary" onClick={handleConfirm}>
+          <Button
+            type="button"
+            variant="outline"
+            className="border-primary text-primary hover:bg-accent hover:text-primary disabled:opacity-50"
+            onClick={handleConfirm}
+            disabled={!nome.trim() || !eixoId || datasFaltando || datasInvalidas}
+          >
             Salvar
           </Button>
         </DialogFooter>

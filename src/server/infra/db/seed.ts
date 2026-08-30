@@ -32,10 +32,10 @@ async function seed() {
   const [plano1, plano2, plano3, plano4] = await db
     .insert(planos)
     .values([
-      { nome: 'Expansão de Contas 2026', eixoId: comercial!.id, status: 'execucao' },
-      { nome: 'Infraestrutura 2026', eixoId: ti!.id, status: 'execucao' },
-      { nome: 'Produtos Digitais', eixoId: ti!.id, status: 'planejado' },
-      { nome: 'Eficiência Operacional 2026', eixoId: operacoes!.id, status: 'concluido' },
+      { nome: 'Expansão de Contas 2026', eixoId: comercial!.id, status: 'execucao', dataInicio: '2026-08-01', dataFim: '2026-10-31' },
+      { nome: 'Infraestrutura 2026', eixoId: ti!.id, status: 'execucao', dataInicio: '2026-08-01', dataFim: '2026-09-30' },
+      { nome: 'Produtos Digitais', eixoId: ti!.id, status: 'planejado', dataInicio: '2026-09-01', dataFim: '2026-12-31' },
+      { nome: 'Eficiência Operacional 2026', eixoId: operacoes!.id, status: 'concluido', dataInicio: '2026-06-01', dataFim: '2026-07-31' },
     ])
     .returning()
 

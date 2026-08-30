@@ -15,8 +15,6 @@ export function PlanoCard({ plano }: { plano: Plano }) {
 
   return (
     <div
-      draggable
-      onDragStart={(e) => e.dataTransfer.setData('text/plain', plano.id)}
       onClick={() => navigate({ to: '/app/eixos/$eixoId/planos/$planoId', params: { eixoId: plano.eixoId, planoId: plano.id } })}
       className="flex cursor-pointer flex-col gap-2 rounded-2xl bg-card p-4 shadow-[0_0_0_1px_var(--secondary)]"
     >
