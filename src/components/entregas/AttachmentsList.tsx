@@ -54,7 +54,10 @@ async function uploadFile(entregaId: string, file: File) {
     })
 
     await confirmAnexoUploadFn({ data: { entregaId, key, nome: file.name, contentType, tamanho: file.size } })
-    toast.success(`"${file.name}" enviado.`, { id: toastId, duration: 3000, closeButton: false })
+    setTimeout(() => {
+      toast.dismiss(toastId)
+      toast.success(`"${file.name}" enviado.`, { duration: 3000, closeButton: false })
+    }, 1000)
   } catch (error) {
     setTimeout(() => {
       toast.dismiss(toastId)
