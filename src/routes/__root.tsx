@@ -25,7 +25,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
-        <Toaster richColors closeButton />
+        <Toaster richColors className='z-[999999]' theme='light' />
         <Scripts />
       </body>
     </html>
