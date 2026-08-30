@@ -1,0 +1,1 @@
+ALTER TYPE "public"."situacao_entrega" ADD VALUE 'aguardando aprovação' BEFORE 'aguardando';

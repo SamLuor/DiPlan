@@ -16,19 +16,21 @@ import { AttachmentsList } from './AttachmentsList'
 import { SolicitacoesList } from './SolicitacoesList'
 import { DetailTimeline } from './DetailTimeline'
 import { NoteComposer } from './NoteComposer'
-import { entregaQueryOptions, performAcaoFn, updateEntregaFn } from '~/server/api/entregas.functions'
+import { aprovarEntregaFn, entregaQueryOptions, performAcaoFn, updateEntregaFn } from '~/server/api/entregas.functions'
 import { eixosQueryOptions } from '~/server/api/eixos.functions'
 import { planosQueryOptions } from '~/server/api/planos.functions'
 import { usuariosQueryOptions } from '~/server/api/usuarios.functions'
 import { useUiStore } from '~/store/useUiStore'
 
 const SITUACAO_LABEL: Record<SituacaoEntrega, string> = {
+  'aguardando aprovação': 'Aguardando aprovação',
   aguardando: 'Aguardando início',
   andamento: 'Em andamento',
   concluida: 'Concluída',
 }
 
 const SITUACAO_BADGE: Record<SituacaoEntrega, string> = {
+  'aguardando aprovação': 'bg-amber-100 text-amber-800',
   aguardando: 'bg-secondary text-secondary-foreground',
   andamento: 'bg-accent text-accent-foreground',
   concluida: 'bg-accent text-accent-foreground',
@@ -76,6 +78,15 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
     onError: (error) => toast.error(error instanceof Error ? error.message : 'Erro ao executar ação.'),
   })
 
+  const aprovarMutation = useMutation({
+    mutationFn: () => aprovarEntregaFn({ data: { id: entregaId } }),
+    onSuccess: () => {
+      invalidate()
+      toast.success('Entrega aprovada.')
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Erro ao aprovar entrega.'),
+  })
+
   if (!entrega) return null
 
   const plano = planos.find((p) => p.id === entrega.planoId)
@@ -88,6 +99,8 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
   if (entrega.situacao === 'aguardando' && ability.can('iniciar', entregaSubject)) actionLabel = 'Iniciar'
   else if (entrega.situacao === 'andamento' && ability.can('concluir', entregaSubject)) actionLabel = 'Concluir'
   else if (entrega.situacao === 'concluida' && ability.can('reabrir', entregaSubject)) showReabrir = true
+  const podeAprovar = entrega.situacao === 'aguardando aprovação' && ability.can('aprovar', entregaSubject)
+  const podeEditar = ability.can('update', entregaSubject)
 
   const overdue = isOverdue(entrega)
   const dataMin = plano?.dataInicio ?? undefined
@@ -100,6 +113,7 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
           <Input
             value={entrega.titulo}
             onChange={(e) => updateMutation.mutate({ titulo: e.target.value })}
+            disabled={!podeEditar}
             className="h-auto border-none bg-transparent px-0 py-1 text-lg font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
           />
         </SheetTitle>
@@ -115,6 +129,7 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
             value={entrega.descricao || ''}
             onChange={(e) => updateMutation.mutate({ descricao: e.target.value })}
             placeholder="Sem descrição"
+            disabled={!podeEditar}
             className="min-h-20"
           />
         </div>
@@ -122,11 +137,11 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
         <div className="flex gap-4">
           <div className="flex-1 space-y-1.5">
             <label className="text-xs text-muted-foreground">Data de início (opcional)</label>
-            <Input type="date" value={entrega.dataInicio || ''} onChange={(e) => updateMutation.mutate({ dataInicio: e.target.value })} min={dataMin} max={dataMax} />
+            <Input type="date" value={entrega.dataInicio || ''} onChange={(e) => updateMutation.mutate({ dataInicio: e.target.value })} min={dataMin} max={dataMax} disabled={!podeEditar} />
           </div>
           <div className="flex-1 space-y-1.5">
             <label className="text-xs text-muted-foreground">Prazo final</label>
-            <Input type="date" value={entrega.dataPrevista || ''} onChange={(e) => updateMutation.mutate({ dataPrevista: e.target.value })} min={dataMin} max={dataMax} />
+            <Input type="date" value={entrega.dataPrevista || ''} onChange={(e) => updateMutation.mutate({ dataPrevista: e.target.value })} min={dataMin} max={dataMax} disabled={!podeEditar} />
             {overdue && <div className="mt-1 text-xs text-destructive">Prazo vencido</div>}
             {!!(plano && (plano.dataInicio || plano.dataFim)) && (
               <div className="mt-1 text-[11px] text-muted-foreground">Prazo do plano: {formatPrazo(plano?.dataInicio, plano?.dataFim)}</div>
@@ -136,7 +151,7 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
 
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground">Responsável</label>
-          <Select value={entrega.responsavelUserId || 'none'} onValueChange={(v) => updateMutation.mutate({ responsavelUserId: v === 'none' ? null : v })}>
+          <Select value={entrega.responsavelUserId || 'none'} onValueChange={(v) => updateMutation.mutate({ responsavelUserId: v === 'none' ? null : v })} disabled={!podeEditar}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -153,13 +168,18 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
 
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground">Prioridade</label>
-          <PrioritySelector value={entrega.prioridade} onChange={(p) => updateMutation.mutate({ prioridade: p })} />
+          <PrioritySelector value={entrega.prioridade} onChange={(p) => updateMutation.mutate({ prioridade: p })} disabled={!podeEditar} />
         </div>
 
         <SolicitacoesList entrega={entrega} />
 
         <div className="flex items-center justify-between border-t pt-4">
           <Badge className={SITUACAO_BADGE[entrega.situacao]}>{SITUACAO_LABEL[entrega.situacao]}</Badge>
+          {podeAprovar && (
+            <Button type="button" variant="outline" className="border-primary text-primary hover:bg-accent hover:text-primary" onClick={() => aprovarMutation.mutate()}>
+              Aprovar
+            </Button>
+          )}
           {actionLabel && (
             <Button type="button" variant="outline" className="border-primary text-primary hover:bg-accent hover:text-primary" onClick={() => acaoMutation.mutate()}>
               {actionLabel}

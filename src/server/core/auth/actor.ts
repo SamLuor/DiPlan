@@ -2,11 +2,12 @@ import { currentUser } from '~/server/core/auth/auth.usecases'
 import { defineAbilityFor, type AppAbility } from '~/lib/ability'
 import type { EixoRepository } from '~/server/repository/eixo.repository'
 import type { EntregaRepository } from '~/server/repository/entrega.repository'
-import type { UsuarioRepository } from '~/server/repository/usuario.repository'
+import type { Perfil, UsuarioRepository } from '~/server/repository/usuario.repository'
 
 export interface Actor {
   id: string
   email: string
+  perfil: Perfil
 }
 
 export interface ActorWithAbility {
@@ -38,5 +39,5 @@ export async function requireActorWithAbility(
   }
 
   const ability = defineAbilityFor(usuario, { eixosChefiados, planosComEntregaPropria })
-  return { actor: { id: usuario.id, email: usuario.email }, ability }
+  return { actor: { id: usuario.id, email: usuario.email, perfil: usuario.perfil }, ability }
 }

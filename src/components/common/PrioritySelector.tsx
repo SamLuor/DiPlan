@@ -5,7 +5,7 @@ import { cn } from '~/lib/utils';
 
 const OPTIONS: Prioridade[] = ['baixa', 'normal', 'alta', 'urgente']
 
-export function PrioritySelector({ value, onChange }: { value: Prioridade; onChange: (p: Prioridade) => void }) {
+export function PrioritySelector({ value, onChange, disabled }: { value: Prioridade; onChange: (p: Prioridade) => void; disabled?: boolean }) {
   return (
     <ToggleGroup
       type="single"
@@ -13,6 +13,7 @@ export function PrioritySelector({ value, onChange }: { value: Prioridade; onCha
       spacing={8}
       value={value}
       onValueChange={(v) => v && onChange(v as Prioridade)}
+      disabled={disabled}
       className="flex-wrap"
     >
       {OPTIONS.map((key) => (

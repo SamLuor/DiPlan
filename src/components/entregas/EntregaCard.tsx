@@ -17,7 +17,7 @@ export function EntregaCard({ entrega }: { entrega: Entrega }) {
 
   return (
     <div
-      draggable
+      draggable={entrega.situacao !== 'aguardando aprovação'}
       onDragStart={(e) => e.dataTransfer.setData('text/plain', entrega.id)}
       onClick={() => openDetail(entrega.id)}
       className={cn('flex cursor-pointer flex-col gap-2 rounded-2xl bg-card p-4 shadow-[0_0_0_1px_var(--secondary)]', overdue && 'shadow-[0_0_0_1px_rgba(179,38,30,0.45)]')}

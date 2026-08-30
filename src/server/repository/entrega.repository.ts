@@ -1,5 +1,5 @@
 export type Prioridade = 'baixa' | 'normal' | 'alta' | 'urgente'
-export type SituacaoEntrega = 'aguardando' | 'andamento' | 'concluida'
+export type SituacaoEntrega = 'aguardando aprovação' | 'aguardando' | 'andamento' | 'concluida'
 export type SolicitacaoTipo = 'revisao' | 'manifestacao' | 'complementacao' | 'analise' | 'elaboracao' | 'aprovacao'
 
 export interface Entrega {
@@ -74,6 +74,8 @@ export interface EntregaInput {
   dataPrevista: string | null
   prioridade: Prioridade
   responsavelUserId: string | null
+  /** Só setado explicitamente no fluxo de aprovação (Operacional cria como 'aguardando aprovação'); senão usa o default do banco ('aguardando'). */
+  situacao?: SituacaoEntrega
 }
 
 export interface NovaNotaInput {

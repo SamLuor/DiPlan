@@ -19,6 +19,7 @@ import { buildAnexoKey, createDownloadUrl, createUploadUrl, deleteObject } from 
 export interface Actor {
   id: string
   email: string
+  perfil: 'diretoria' | 'chefia' | 'operacional'
 }
 
 export interface EntregaRepos {
@@ -34,13 +35,22 @@ function validarDataDentroDoPlano(dataPrevista: string | null, plano: { dataInic
   if (plano.dataFim && dataPrevista > plano.dataFim) throw new Error('Data prevista posterior ao fim do plano.')
 }
 
-export async function createEntrega(repos: EntregaRepos, input: EntregaInput): Promise<Entrega> {
+/**
+ * Entrega criada por Operacional nasce 'aguardando aprovação' — só Chefia/Diretoria
+ * aprovam pra ela seguir o fluxo normal (ver `domain-info/spec-task-aprovacao-entrega.md`).
+ */
+export async function createEntrega(repos: EntregaRepos, input: EntregaInput, actor: Actor): Promise<Entrega> {
   const titulo = input.titulo.trim()
   if (!titulo || !input.planoId) throw new Error('Título e plano são obrigatórios.')
   const plano = await repos.planos.findById(input.planoId)
   if (!plano) throw new Error('Plano não encontrado.')
   validarDataDentroDoPlano(input.dataPrevista, plano)
-  return repos.entregas.create({ ...input, titulo, descricao: input.descricao.trim() })
+  const situacao = actor.perfil === 'operacional' ? 'aguardando aprovação' : undefined
+  const entrega = await repos.entregas.create({ ...input, titulo, descricao: input.descricao.trim(), situacao })
+  if (situacao === 'aguardando aprovação') {
+    await addRegistroSistema(repos, entrega.id, `Entrega criada por ${actor.email}, aguardando aprovação da chefia.`)
+  }
+  return entrega
 }
 
 export async function updateEntrega(repos: EntregaRepos, id: string, patch: Partial<EntregaInput>): Promise<Entrega> {
@@ -63,6 +73,7 @@ export async function moveEntregaToStatus(repos: EntregaRepos, id: string, statu
   const entregas = await repos.entregas.findAll()
   const entrega = entregas.find((e) => e.id === id)
   if (!entrega) throw new Error('Entrega não encontrada.')
+  if (entrega.situacao === 'aguardando aprovação') throw new Error('Entrega aguardando aprovação — precisa ser aprovada antes de mudar de status.')
   if (entrega.situacao === status) return entrega
   const updated = await repos.entregas.updateSituacao(id, status)
   if (!updated) throw new Error('Entrega não encontrada.')
@@ -75,6 +86,7 @@ export async function performAcao(repos: EntregaRepos, id: string, actor: Actor)
   const entregas = await repos.entregas.findAll()
   const entrega = entregas.find((e) => e.id === id)
   if (!entrega) throw new Error('Entrega não encontrada.')
+  if (entrega.situacao === 'aguardando aprovação') throw new Error('Entrega aguardando aprovação — precisa ser aprovada antes de iniciar.')
 
   let proximo: SituacaoEntrega
   let mensagem: string
@@ -93,6 +105,22 @@ export async function performAcao(repos: EntregaRepos, id: string, actor: Actor)
   if (!updated) throw new Error('Entrega não encontrada.')
   if (proximo === 'andamento') await promoteToExecucaoIfNeeded(repos.planos, entrega.planoId)
   await addRegistroSistema(repos, id, mensagem)
+  return updated
+}
+
+/**
+ * Aprovação de entrega criada por Operacional (ver `domain-info/spec-task-aprovacao-entrega.md`).
+ * Quem pode chamar isso é decidido na API layer via ability (`aprovar Entrega`, escopado por
+ * eixo pra Chefia) — aqui só valida o estado e faz a transição.
+ */
+export async function aprovarEntrega(repos: EntregaRepos, id: string, actor: Actor): Promise<Entrega> {
+  const entrega = await repos.entregas.findById(id)
+  if (!entrega) throw new Error('Entrega não encontrada.')
+  if (entrega.situacao !== 'aguardando aprovação') throw new Error('Esta entrega não está aguardando aprovação.')
+
+  const updated = await repos.entregas.updateSituacao(id, 'aguardando')
+  if (!updated) throw new Error('Entrega não encontrada.')
+  await addRegistroSistema(repos, id, `Entrega aprovada por ${actor.email}.`)
   return updated
 }
 

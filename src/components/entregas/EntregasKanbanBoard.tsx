@@ -3,17 +3,18 @@ import type { Entrega, SituacaoEntrega } from '~/server/repository/entrega.repos
 import { EntregaCard } from './EntregaCard'
 import { moveEntregaToStatusFn } from '~/server/api/entregas.functions'
 
-const COLUMNS: Array<{ key: SituacaoEntrega; label: string }> = [
-  { key: 'aguardando', label: 'Aguardando início' },
-  { key: 'andamento', label: 'Em andamento' },
-  { key: 'concluida', label: 'Concluída' },
+const COLUMNS: Array<{ key: SituacaoEntrega; label: string; aceitaDrop: boolean }> = [
+  { key: 'aguardando aprovação', label: 'Aguardando aprovação', aceitaDrop: false },
+  { key: 'aguardando', label: 'Aguardando início', aceitaDrop: true },
+  { key: 'andamento', label: 'Em andamento', aceitaDrop: true },
+  { key: 'concluida', label: 'Concluída', aceitaDrop: true },
 ]
 
 export function EntregasKanbanBoard({ entregas }: { entregas: Entrega[] }) {
   const queryClient = useQueryClient()
 
   const moveMutation = useMutation({
-    mutationFn: (input: { id: string; status: SituacaoEntrega }) => moveEntregaToStatusFn({ data: input }),
+    mutationFn: (input: { id: string; status: 'aguardando' | 'andamento' | 'concluida' }) => moveEntregaToStatusFn({ data: input }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['entregas'] })
       queryClient.invalidateQueries({ queryKey: ['entrega', variables.id] })
@@ -31,10 +32,12 @@ export function EntregasKanbanBoard({ entregas }: { entregas: Entrega[] }) {
               <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">{items.length}</span>
             </div>
             <div
-              onDragOver={(e) => e.preventDefault()}
+              onDragOver={(e) => col.aceitaDrop && e.preventDefault()}
               onDrop={(e) => {
+                if (!col.aceitaDrop) return
                 e.preventDefault()
-                moveMutation.mutate({ id: e.dataTransfer.getData('text/plain'), status: col.key })
+                // Seguro: colunas com aceitaDrop=false (aguardando aprovação) já retornaram acima.
+                moveMutation.mutate({ id: e.dataTransfer.getData('text/plain'), status: col.key as 'aguardando' | 'andamento' | 'concluida' })
               }}
               className="flex min-h-full flex-1 flex-col gap-2.5 overflow-y-auto pb-2 px-1 pt-2"
             >

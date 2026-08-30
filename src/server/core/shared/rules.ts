@@ -32,6 +32,7 @@ export function isChefiaAtual(eixo: Eixo | null, usuarios: Usuario[], loginEmail
 }
 
 const SITUACAO_LABEL: Record<Entrega['situacao'], string> = {
+  'aguardando aprovação': 'Aguardando aprovação',
   aguardando: 'Aguardando início',
   andamento: 'Em andamento',
   concluida: 'Concluída',

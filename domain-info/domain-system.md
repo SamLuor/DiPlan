@@ -122,8 +122,19 @@ Lógica (`isOverdue()`):
 - Módulo isomórfico `src/lib/ability.ts` (CASL) — mesma lógica usada no servidor (enforcement, não contornável) e no client (`src/hooks/useAbility.ts`, só esconde/desabilita UI).
 - Enforcement aplicado nos endpoints de criação/edição/ação de plano e entrega, e nos endpoints administrativos de usuário/eixo (`src/server/core/auth/actor.ts#requireActorWithAbility`).
 - Tela nova **Perfil e Permissões** (`/app/admin/permissoes`, Diretoria-only): atribui perfil por usuário e mostra a matriz de referência.
-- Duas contradições internas do documento fonte (Seção 3.3 vs. Seção 4, ambas sobre o perfil Operacional) resolvidas e documentadas em `domain-info/rbac-spec.md` — não improvisadas silenciosamente no código.
-- **Fora deste primeiro RBAC**: fluxo real de aprovação de entregas (ver `domain-info/spec-task-aprovacao-entrega.md`, tarefa futura separada), exclusão de plano (não implementada em nenhum lugar do sistema ainda), telas de relatórios (não existem ainda).
+- Duas contradições internas do documento fonte (Seção 3.3 vs. Seção 4, ambas sobre o perfil Operacional) resolvidas e documentadas em `domain-info/rbac-spec.md` — não improvisadas silenciosamente no código. A contradição 2 ("criar entrega... com aprovação") foi resolvida ali negando a criação por Operacional; a Seção 3.14 abaixo resolve isso de fato com o fluxo de aprovação.
+- **Fora deste primeiro RBAC**: exclusão de plano (não implementada em nenhum lugar do sistema ainda), telas de relatórios (não existem ainda).
+
+### 3.14. Fluxo de aprovação de entregas do Operacional (branch `feature/aprovacao-entrega`, a partir de `feature/rbac-casl`)
+
+Spec original em `domain-info/spec-task-aprovacao-entrega.md`. Resolve de vez a contradição 2 do `rbac-spec.md` — Operacional volta a poder criar entrega, só que agora com aprovação de verdade:
+
+- Nova situação de entrega: **"aguardando aprovação"** (`SituacaoEntrega`, antes da "Aguardando início"). Entrega criada por Operacional nasce nesse estado; criada por Chefia/Diretoria nasce direto em "Aguardando início" (não precisam se auto-aprovar).
+- Enquanto pendente: Operacional pode editar (título, descrição, datas, responsável, prioridade) e ver a própria entrega, mas **não pode** mudar a situação (iniciar/concluir/reabrir bloqueados até aprovação — `performAcao`/`moveEntregaToStatus` rejeitam explicitamente).
+- Aprovação (`aprovarEntrega`, verbo `aprovar` no CASL) restrita a Chefia do eixo ou Diretoria — transiciona pra "Aguardando início" (fluxo normal) e registra na timeline.
+- Depois de aprovada: Operacional **perde** a edição desses mesmos campos (só Chefia/Diretoria editam a partir daí) — expresso na condição CASL do `update` (`situacao: 'aguardando aprovação'` obrigatório pra Operacional editar).
+- Kanban de entregas ganhou uma 4ª coluna "Aguardando aprovação" (só leitura, sem drag) — mais a tela dedicada **Solicitações de Aprovação** (`/app/aprovacoes`, Chefia/Diretoria) agregando pendências de todos os planos, com contador no menu lateral.
+- Fora de escopo (igual à spec original): notificação pra chefia/diretoria quando uma entrega entra em aprovação.
 
 ---
 

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import {
   addNota,
   addSolicitacao,
+  aprovarEntrega,
   confirmAnexoUpload,
   createAnexoUploadUrl,
   createEntrega,
@@ -82,10 +83,10 @@ export const entregaQueryOptions = (id: string) =>
 export const createEntregaFn = createServerFn({ method: 'POST' })
   .validator(entregaFormSchema.partial({ dataInicio: true }))
   .handler(async ({ data }) => {
-    const { ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
+    const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
     const plano = await planoRepository.findById(data.planoId)
     if (ability.cannot('create', subject('Entrega', { eixoId: plano?.eixoId }))) throw new Error('Sem permissão para criar entrega.')
-    return createEntrega(repos, { dataInicio: null, ...data })
+    return createEntrega(repos, { dataInicio: null, ...data }, actor)
   })
 
 export const updateEntregaFn = createServerFn({ method: 'POST' })
@@ -122,6 +123,17 @@ export const performAcaoFn = createServerFn({ method: 'POST' })
     const verbo = entrega.situacao === 'aguardando' ? 'iniciar' : entrega.situacao === 'andamento' ? 'concluir' : 'reabrir'
     if (ability.cannot(verbo, subject('Entrega', { ...entrega, eixoId: plano?.eixoId }))) throw new Error('Sem permissão para executar esta ação.')
     return performAcao(repos, data.id, actor)
+  })
+
+export const aprovarEntregaFn = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const { actor, ability } = await requireActorWithAbility(usuarioRepository, eixoRepository, entregaRepository)
+    const entrega = await entregaRepository.findById(data.id)
+    if (!entrega) throw new Error('Entrega não encontrada.')
+    const plano = await planoRepository.findById(entrega.planoId)
+    if (ability.cannot('aprovar', subject('Entrega', { ...entrega, eixoId: plano?.eixoId }))) throw new Error('Sem permissão para aprovar esta entrega.')
+    return aprovarEntrega(repos, data.id, actor)
   })
 
 export const addNotaFn = createServerFn({ method: 'POST' })

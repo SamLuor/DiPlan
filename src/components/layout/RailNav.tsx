@@ -1,16 +1,19 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Calendar, LayoutGrid, LogOut, Settings, ShieldCheck, Users } from 'lucide-react'
+import { Calendar, CheckCircle2, LayoutGrid, LogOut, Settings, ShieldCheck, Users } from 'lucide-react'
 import { cn } from '~/lib/utils'
 import { currentUserQueryOptions, logoutFn } from '~/server/api/auth.functions'
+import { entregasQueryOptions } from '~/server/api/entregas.functions'
 
-const railBtn = 'flex size-10 items-center justify-center rounded-lg border-none text-white/60 transition-colors'
+const railBtn = 'relative flex size-10 items-center justify-center rounded-lg border-none text-white/60 transition-colors'
 
 export function RailNav() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { data: currentUser } = useQuery(currentUserQueryOptions())
+  const { data: entregas = [] } = useQuery(entregasQueryOptions())
+  const pendentesAprovacao = entregas.filter((e) => e.situacao === 'aguardando aprovação').length
 
   const logoutMutation = useMutation({
     mutationFn: () => logoutFn(),
@@ -39,6 +42,21 @@ export function RailNav() {
         <button type="button" title="Calendário" onClick={() => navigate({ to: '/app/calendario' })} className={itemClass(pathname.startsWith('/app/calendario'))}>
           <Calendar className="size-5" />
         </button>
+        {(currentUser?.perfil === 'diretoria' || currentUser?.perfil === 'chefia') && (
+          <button
+            type="button"
+            title="Solicitações de Aprovação"
+            onClick={() => navigate({ to: '/app/aprovacoes' })}
+            className={itemClass(pathname.startsWith('/app/aprovacoes'))}
+          >
+            <CheckCircle2 className="size-5" />
+            {pendentesAprovacao > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-semibold text-white">
+                {pendentesAprovacao}
+              </span>
+            )}
+          </button>
+        )}
         {currentUser?.perfil === 'diretoria' && (
           <button
             type="button"
