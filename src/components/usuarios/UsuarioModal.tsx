@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { Input } from '~/components/ui/input'
@@ -34,9 +35,13 @@ export function UsuarioModal() {
   const mutation = useMutation({
     mutationFn: (input: { id?: string; nome: string; email: string; modo: UserModo; eixoId: string }) =>
       input.id ? updateUsuarioFn({ data: input as typeof input & { id: string } }) : createUsuarioFn({ data: input }),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] })
+      toast.success(variables.id ? 'Usuário atualizado.' : 'Usuário criado — e-mail de definição de senha enviado.')
       closeModal()
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar usuário.')
     },
   })
 

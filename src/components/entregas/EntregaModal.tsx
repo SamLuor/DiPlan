@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { Input } from '~/components/ui/input'
@@ -35,7 +36,11 @@ export function EntregaModal() {
     mutationFn: (input: Parameters<typeof createEntregaFn>[0]['data']) => createEntregaFn({ data: input }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['entregas'] })
+      toast.success('Entrega criada.')
       closeModal()
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Erro ao criar entrega.')
     },
   })
 

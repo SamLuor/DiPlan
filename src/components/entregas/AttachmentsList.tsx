@@ -1,22 +1,62 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Paperclip, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { Progress } from '~/components/ui/progress'
 import type { Anexo } from '~/server/repository/entrega.repository'
 import { confirmAnexoUploadFn, createAnexoUploadUrlFn, getAnexoDownloadUrlFn, removeAnexoFn } from '~/server/api/entregas.functions'
 
 const MAX_ANEXO_BYTES = 20 * 1024 * 1024
 
-async function uploadFile(entregaId: string, file: File) {
-  if (file.size > MAX_ANEXO_BYTES) throw new Error(`"${file.name}" excede o tamanho máximo de 20MB.`)
-  const contentType = file.type || 'application/octet-stream'
+function UploadProgressToast({ nome, progress }: { nome: string; progress: number }) {
+  return (
+    <div className="flex w-full flex-col gap-1.5 py-0.5">
+      <span className="truncate text-sm text-foreground">Enviando "{nome}"…</span>
+      <Progress value={progress} className="h-1.5" />
+      <span className="text-xs text-muted-foreground">{progress}%</span>
+    </div>
+  )
+}
 
-  const { key, uploadUrl } = await createAnexoUploadUrlFn({
-    data: { entregaId, nome: file.name, contentType, tamanho: file.size },
+function putWithProgress(url: string, file: File, contentType: string, onProgress: (pct: number) => void) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', url)
+    xhr.setRequestHeader('Content-Type', contentType)
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100))
+    }
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Falha ao enviar "${file.name}".`)))
+    xhr.onerror = () => reject(new Error(`Falha ao enviar "${file.name}".`))
+    xhr.send(file)
   })
+}
 
-  const res = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': contentType } })
-  if (!res.ok) throw new Error(`Falha ao enviar "${file.name}".`)
+async function uploadFile(entregaId: string, file: File) {
+  const toastId = `anexo-upload-${file.name}-${Date.now()}`
 
-  await confirmAnexoUploadFn({ data: { entregaId, key, nome: file.name, contentType, tamanho: file.size } })
+  if (file.size > MAX_ANEXO_BYTES) {
+    toast.error(`"${file.name}" excede o tamanho máximo de 20MB.`)
+    return
+  }
+
+  const contentType = file.type || 'application/octet-stream'
+  toast.custom(() => <UploadProgressToast nome={file.name} progress={0} />, { id: toastId, duration: Infinity })
+
+  try {
+    const { key, uploadUrl } = await createAnexoUploadUrlFn({
+      data: { entregaId, nome: file.name, contentType, tamanho: file.size },
+    })
+
+    await putWithProgress(uploadUrl, file, contentType, (pct) => {
+      toast.custom(() => <UploadProgressToast nome={file.name} progress={pct} />, { id: toastId, duration: Infinity })
+    })
+
+    await confirmAnexoUploadFn({ data: { entregaId, key, nome: file.name, contentType, tamanho: file.size } })
+    toast.success(`"${file.name}" enviado.`, { id: toastId, duration: 3000 })
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : `Falha ao enviar "${file.name}".`, { id: toastId, duration: 5000 })
+    throw error
+  }
 }
 
 export function AttachmentsList({ entregaId, anexos }: { entregaId: string; anexos: Anexo[] }) {
@@ -28,18 +68,23 @@ export function AttachmentsList({ entregaId, anexos }: { entregaId: string; anex
   }
 
   const addMutation = useMutation({
-    mutationFn: (files: File[]) => Promise.all(files.map((file) => uploadFile(entregaId, file))),
+    mutationFn: (files: File[]) => Promise.allSettled(files.map((file) => uploadFile(entregaId, file))),
     onSuccess: invalidate,
   })
 
   const removeMutation = useMutation({
     mutationFn: (anexoId: string) => removeAnexoFn({ data: { anexoId } }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      toast.success('Anexo removido.')
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Erro ao remover anexo.'),
   })
 
   const downloadMutation = useMutation({
     mutationFn: (anexoId: string) => getAnexoDownloadUrlFn({ data: { anexoId } }),
     onSuccess: (url) => window.open(url, '_blank'),
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Erro ao baixar anexo.'),
   })
 
   return (
@@ -60,7 +105,6 @@ export function AttachmentsList({ entregaId, anexos }: { entregaId: string; anex
           }}
         />
       </div>
-      {addMutation.isError && <p className="mb-2 text-xs text-destructive">{(addMutation.error as Error).message}</p>}
       {anexos.length > 0 && (
         <div className="flex flex-col gap-1.5">
           {anexos.map((anexo) => (

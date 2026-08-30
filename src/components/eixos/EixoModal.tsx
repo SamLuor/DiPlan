@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { Input } from '~/components/ui/input'
@@ -25,9 +26,13 @@ export function EixoModal() {
   const mutation = useMutation({
     mutationFn: (input: { id?: string; nome: string; chefiaUserId: string | null }) =>
       input.id ? updateEixoFn({ data: { id: input.id, nome: input.nome, chefiaUserId: input.chefiaUserId } }) : createEixoFn({ data: { nome: input.nome } }),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['eixos'] })
+      toast.success(variables.id ? 'Eixo atualizado.' : 'Eixo criado.')
       closeModal()
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar eixo.')
     },
   })
 

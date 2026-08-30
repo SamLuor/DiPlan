@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { isOverdue } from '~/lib/domain'
 import { formatPrazo } from '~/lib/dates'
 import type { EntregaInput, SituacaoEntrega } from '~/server/repository/entrega.repository'
@@ -59,11 +60,17 @@ function EntregaDetailBody({ entregaId }: { entregaId: string }) {
   const updateMutation = useMutation({
     mutationFn: (patch: Partial<EntregaInput>) => updateEntregaFn({ data: { id: entregaId, ...patch } }),
     onSuccess: invalidate,
+    // Sem toast de sucesso aqui: título/descrição salvam a cada tecla digitada, viraria spam.
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Erro ao salvar alteração.'),
   })
 
   const acaoMutation = useMutation({
     mutationFn: () => performAcaoFn({ data: { id: entregaId } }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      toast.success('Entrega atualizada.')
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : 'Erro ao executar ação.'),
   })
 
   if (!entrega) return null

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Button } from '~/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { Input } from '~/components/ui/input'
@@ -39,10 +40,14 @@ export function PlanoModal() {
       input.id ? updatePlanoFn({ data: { id: input.id, ...input } }) : createPlanoFn({ data: input }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['planos'] })
+      toast.success(modal?.mode === 'edit' ? 'Plano atualizado.' : 'Plano criado.')
       closeModal()
       if (modal?.mode === 'create' && result) {
         navigate({ to: '/app/eixos/$eixoId/planos/$planoId', params: { eixoId, planoId: result.id } })
       }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar plano.')
     },
   })
 
